@@ -38,8 +38,7 @@ module user_mem_ctrl_top_tb();
     logic [26:0] user_addr;           // address;
     
     // data;
-    logic [15:0] user_wr_data;   
-    //logic [DATA_WIDTH-1:0] user_rd_data;
+    logic [63:0] user_wr_data;       
     logic [63:0] user_rd_data;   // temporary;
     
     // status
