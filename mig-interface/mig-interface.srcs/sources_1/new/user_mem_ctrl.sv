@@ -551,18 +551,18 @@ module user_mem_ctrl
             ST_READ: begin
                 // check whether the read request has been acknowledged via app_rdy;
                 if(app_rdy) begin
-                    // wait for the MIG to put valid data on the bus;
-                    if(app_rd_data_valid) begin
+                    // wait for the MIG to put the first batch read data on the bus;
+                    if(app_rd_data_valid && ~app_rd_data_end) begin
                         app_rd_data_fbatch_next = app_rd_data;                
-                
-                        // wait for the mig to flag the end of the data;
-                        if(app_rd_data_end) begin                                                    
-                            app_rd_data_sbatch_next = app_rd_data;                
-                                        
-                            transaction_complete_async = 1'b1;  // signal to the user;
-                            state_next = ST_IDLE;
-                        end
                     end
+                    // wait for the MIG to put the second (last) batch read data on the bus;
+                    else if (app_rd_data_valid && app_rd_data_end) begin                       
+                        app_rd_data_sbatch_next = app_rd_data;                
+                       
+                        // the entire read operation is concluded;             
+                        transaction_complete_async = 1'b1;  // signal to the user;
+                        state_next = ST_IDLE;
+                    end                    
                 end
             end
         
