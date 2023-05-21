@@ -41,13 +41,12 @@ module user_mem_ctrl_tb
     
     localparam addr01 = 23'b0;
     localparam addr02 = {22'b0, 1'b1};
-    localparam TEST_ARRAY_SIZE = 3;
+    localparam TEST_ARRAY_SIZE = 100;
     bit[TEST_ARRAY_SIZE-1:0][127:0] TEST_ARRAY;
     
     
     initial
-    begin
-    
+    begin        
         /* test 01: first write */
         @(posedge clk_sys);
         user_wr_strobe <= 1'b0;
@@ -171,11 +170,16 @@ module user_mem_ctrl_tb
             
             @(posedge clk_sys);            
             // check if the read data matches with what it is written at a given address;
-             assert((user_rd_data + 1) == TEST_ARRAY[i]) $display("OK, data matches");  
-             else $error("ERROR: Data does not match @ time: %t, Address: %D", $time, user_addr);
-                     
-        end
+             assert((user_rd_data) == TEST_ARRAY[i]) $display("Test index: %d, Time; %t, Status: OK, data matches.", i, $time);  
+             else begin 
+                    $error("Read Data does not match with the Written Data @ time: %t, Address: %0d", $time, user_addr);
+                    $display("ERROR Encountered: terminate the simulation at once");
+                    $stop;                     
+             end            
+         end
+                
         $stop;
+        
     end
     
 endmodule
