@@ -90,6 +90,7 @@ module user_mem_ctrl_top_tb();
     logic debug_init_calib_complete;
     logic debug_transaction_complete_async;
     logic [2:0] debug_app_cmd;
+    logic [63:0] debug_app_rd_data;
     
     /*------------------------------------
     * instantiation 

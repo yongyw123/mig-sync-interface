@@ -39,7 +39,7 @@ module user_mem_ctrl_tb
     );
     
     localparam addr01 = 23'b0;
-    localparam addr02 = {22'b0, 1'b0};
+    localparam addr02 = {22'b0, 1'b1};
     
     initial
     begin
