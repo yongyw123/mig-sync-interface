@@ -180,7 +180,8 @@ module user_mem_ctrl
         output logic debug_app_wdf_wren,
         output logic debug_init_calib_complete,
         output logic debug_transaction_complete_async,
-        output logic [2:0] debug_app_cmd
+        output logic [2:0] debug_app_cmd,
+        output logic [63:0] debug_app_rd_data
     );
     
     /* -----------------------------------------------
@@ -219,6 +220,11 @@ module user_mem_ctrl
     logic app_rdy_async;
     logic transaction_complete_async;   // output; 
     
+    
+    // registers to filter glitches;    
+    logic [63:0] app_rd_data_fbatch_reg, app_rd_data_fbatch_next;   // first batch;
+    logic [63:0] app_rd_data_sbatch_reg, app_rd_data_sbatch_next;   // second batch;
+    
     /* -----------------------------------------------
     * state;
     * ST_WAIT_INIT_COMPLETE: to check MIG initialization complete status before doing everything else;
@@ -236,10 +242,14 @@ module user_mem_ctrl
     always_ff @(posedge ui_clk) begin
         // synchronous reset signal from the MIG interface;
         if(ui_clk_sync_rst) begin
-            state_reg <= ST_WAIT_INIT_COMPLETE;
+            state_reg <= ST_WAIT_INIT_COMPLETE;            
+            app_rd_data_fbatch_reg <= 0;
+            app_rd_data_sbatch_reg <= 0;
         end
         else begin
-            state_reg <= state_next;      
+            state_reg <= state_next;
+            app_rd_data_fbatch_reg <= app_rd_data_fbatch_next;
+            app_rd_data_sbatch_reg <= app_rd_data_sbatch_next;            
         end
     end 
     
@@ -399,6 +409,9 @@ module user_mem_ctrl
     assign debug_init_calib_complete = init_calib_complete;
     assign debug_transaction_complete_async = transaction_complete_async;
     assign debug_app_cmd = app_cmd;
+    assign debug_app_rd_data = app_rd_data;
+    
+    
     
     /* -----------------------------------------------
     * FSM
@@ -421,7 +434,10 @@ module user_mem_ctrl
         // the MSB bit is for the rank; there is only one rank; so zero;
         app_addr        = {1'b0, user_addr, 3'b000};
         
-        user_rd_data    = 0;
+        //user_rd_data    = 0;
+        app_rd_data_fbatch_next = app_rd_data_fbatch_reg;
+        app_rd_data_sbatch_next = app_rd_data_sbatch_reg;
+        
         app_wdf_data    = 0;  
                 
         /* -----------------------------------------------
@@ -441,7 +457,7 @@ module user_mem_ctrl
                     state_next = ST_IDLE;                
                 end
             end
-            
+
             ST_IDLE: begin
                 // only if memory says so;
                 /* see UG586; app rdy is NOT asserted if:
@@ -537,13 +553,11 @@ module user_mem_ctrl
                 if(app_rdy) begin
                     // wait for the MIG to put valid data on the bus;
                     if(app_rd_data_valid) begin
-                        // ??? to do some masking here ??                        
-                            user_rd_data[63:0] = app_rd_data;                
+                        app_rd_data_fbatch_next = app_rd_data;                
                 
                         // wait for the mig to flag the end of the data;
-                        if(app_rd_data_end) begin
-                            // ??? to do some masking here ??                        
-                            user_rd_data[127:64] = app_rd_data;                
+                        if(app_rd_data_end) begin                                                    
+                            app_rd_data_sbatch_next = app_rd_data;                
                                         
                             transaction_complete_async = 1'b1;  // signal to the user;
                             state_next = ST_IDLE;
@@ -555,5 +569,34 @@ module user_mem_ctrl
            default: ;  //nop;
         endcase
     end
-
+    
+    /* -----------------------------------------------
+    * output: 
+    * to pack two batches of 64-bit into 128-bit user read data;
+    *-----------------------------------------------*/
+    assign user_rd_data = {app_rd_data_sbatch_reg, app_rd_data_fbatch_reg};
+    
+    /* -----------------------------------------------
+    * next state to pack 64-bit into 128-bit user read data;
+    *-----------------------------------------------*/
+    /*
+    always_comb begin
+        // default;
+        app_rd_data_fbatch_next = app_rd_data_fbatch_reg;
+        app_rd_data_sbatch_next = app_rd_data_sbatch_reg;
+        if(state_reg == ST_READ) begin
+            // first 64-bit batch;
+            if(app_rd_data_valid && ~app_rd_data_end) begin
+                app_rd_data_fbatch_next = app_rd_data; 
+            end
+            // second batch;
+            else if(app_rd_data_valid && app_rd_data_end) begin
+                app_rd_data_sbatch_next = app_rd_data; 
+            end            
+        end
+    end
+    // output for the read data;
+    assign
+    */
+    
 endmodule
