@@ -45,8 +45,14 @@ General Construction:
 6. this is usually the case since we assume sequential transfer;
 
 CDC:
-1. by above, we need to becareful;
-2. ??
+1. by above, we need to becareful; as there are two CDC cases;
+2. case 01: from fast clock domain to slow clock domain;
+3. case 02: from slow clock domain to fast clock domain;
+4. if the signal to sample is sufficiently wide, then a simple double FF synchronizer
+    is sufficient for both cases as log as the input is at least 3-clock cycle wides with respect to the sampling clock;
+    this criteria is so that there willl be no missed events; 
+5. if the signal to sample is a pulse generated from the fast clock domain, and the fast clock rate is at least 1.5 times 
+    faster than slow clock rate, then a toggle synchronizer is needed; otherwise, there will be missed events; 
 
 Write Construction:
 1. By above, when writing, two clock cycles are required to complete the entire 128-bit data;
@@ -61,14 +67,17 @@ Read Construction:
 2. MIG will signal when the data is valid, and when the data is the last chunk on the data bus;
 
 Background + Address Mapping;
-1. MIG is configured to map the DDR2 as rank-bank-row-column;
-2. see the data sheet, the address is 27-bit wide (including the rank); 
+-2. The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM.
+-1. MIG controller is configured for sequential reads;
+0. MIG is configured to map the DDR2 as rank-bank-row-column;
+1. see the data sheet, the address is 27-bit wide (including the rank); 
 2. since there is only one rank, this is hard-coded as zero; not important;
 3. DDR2 native data width i 16-bit; that means each address bit represents 16-bit; (see the datasheet);
 4. by above, each read/write DDR2 transaction is 128-bit;
 5. this corresponds to 128/16 = 8 address bits;
 6. by above, it implies that the three LSB bits of the address must be zero (the first three LSB column bits);
 7. This is because 3-bit corresponds to eight (8) 16-bit data for the DDR2;
+8. reference: https://support.xilinx.com/s/article/33698?language=en_US
 
 User Setup:
 1. by above, we have the write and read data to be 128-bit wide;
@@ -81,14 +90,22 @@ Application Setup:
 3. for example, if the application write data is only 16-bit, the application
 needs to accumulate 8 data before writing it;
 
+Caution:
+1. Bank Sharing Among Controllers
+    No unused part of a bank used in a memory interface is permitted to be shared with another memory interface. 
+    The dedicated logic that controls all the FIFOs,
+    and phasers in a bank is designed to only operate with a single memory interface and cannot be shared with other memory interfaces.
+    With the exception of the shared address and control in the dual controller supported in MIG.
+
 ----------------------------------------*/
 
 module user_mem_ctrl
     #(parameter
-        CLOCK_RATIO                 = 2,            // PHY to controller clock ratio;
-        DATA_WIDTH                  = 128,            // ddr2 native data width;
-        TRANSACTION_WIDTH_PER_CYCLE = 64,     // per clock; so 128 in two clocks;
-        DATA_MASK_WIDTH             = 8         // masking for write data; see UG586 for the formulae;        
+        CLOCK_RATIO                 = 2,    // PHY to controller clock ratio;
+        DATA_WIDTH                  = 128,  // ddr2 native data width;
+        TRANSACTION_WIDTH_PER_CYCLE = 64,   // per clock; so 128 in two clocks;
+        DATA_MASK_WIDTH             = 8,    // masking for write data; see UG586 for the formulae;
+        USER_ADDR_WIDTH             = 23   // discussed in the note section above;                
     )
     (
         /* -----------------------------------------------------
@@ -103,7 +120,7 @@ module user_mem_ctrl
         ------------------------------------------------------*/
         input logic user_wr_strobe,             // write request;
         input logic user_rd_strobe,             // read request;
-        input logic [26:0] user_addr,           // address;
+        input logic [USER_ADDR_WIDTH-1:0] user_addr,           // address;
         
         // data;
         input logic [DATA_WIDTH-1:0] user_wr_data,   
@@ -168,11 +185,11 @@ module user_mem_ctrl
     
     /* -----------------------------------------------
     * constants;
-    *-----------------------------------------------*/
+    *-----------------------------------------------*/    
+    // MIG command; caution; other values are reserved; so do not use them;
     localparam MIG_CMD_READ     = 3'b001;     // this is fixed; see UG586 docuemenation;
     localparam MIG_CMD_WRITE    = 3'b000;    // this is fixed; see UG586 docuemenation;
-    //localparam MIG_CMD_NOP      = 3'b100;     // other value is reserved, so do not use them;
-
+    
     /* -----------------------------------------------
     * signal declarations
     *-----------------------------------------------*/
@@ -382,6 +399,7 @@ module user_mem_ctrl
     assign debug_init_calib_complete = init_calib_complete;
     assign debug_transaction_complete_async = transaction_complete_async;
     assign debug_app_cmd = app_cmd;
+    
     /* -----------------------------------------------
     * FSM
     *-----------------------------------------------*/
@@ -396,13 +414,15 @@ module user_mem_ctrl
         app_wdf_end     = 1'b0;
         app_wdf_mask    = 8'hFF; // active low
         
-        // direct mapping;
-        // the address conversion shall be done outside of this module;
-        app_addr        = {user_addr[26:3], 3'b000};
+        // user-address and mig-addr mapping;
+        // see the note section;
+        // first three LSB bits must be zero since ddr2 data native data width is 16-bit wide
+        // and each ddr2 read/write transaction is 128-bit; hence 128/16 = 8 ==> 2^{3} = 8;
+        // the MSB bit is for the rank; there is only one rank; so zero;
+        app_addr        = {1'b0, user_addr, 3'b000};
         
         user_rd_data    = 0;
-        //user_rd_data = app_rd_data;
-        app_wdf_data    = 64'b0;  
+        app_wdf_data    = 0;  
                 
         /* -----------------------------------------------
         * state;
@@ -458,36 +478,14 @@ module user_mem_ctrl
                     each bit represents a byte;
                     there are 8-bits; hence 64-bit chunk;
                     */
-                    //app_wdf_mask = 8'b1111_1100;
-                    //app_wdf_data = {48'h0, user_wr_data};
-                    
-                    // mask the data out since this batch is not required;
-                    app_wdf_mask = 8'hFF;
-                    app_wdf_data = 64'b0;   // dont care;
+                    // all data shall be written; so enable the mask;
+                    app_wdf_mask = 8'h00;
+                    // extract the first 64-bit chunk from the user;
+                    app_wdf_data = user_wr_data[63:0];
                     
                     // push it to the MIG write fifo;
                     app_wdf_wren = 1'b1;    
-                    
-                    // prepare the signal;
-                    //app_cmd = MIG_CMD_WRITE;                                            
-                    //app_wdf_wren = 1'b1;
-
-                    /*
-                    // submit the request only when it is ready;
-                    // otherwise hold it;
-                    if(app_rdy) begin
-                        app_cmd = MIG_CMD_WRITE;   
-                        
-                        // write it into the write MIG fifo                                         
-                        app_wdf_wren = 1'b1;
-                        
-                        // submit the request;                        
-                        app_en = 1'b1;
-                        
-                        // next chunk to complete a total of 128-bit write transaction;
-                        state_next = ST_WRITE_LOWER;                       
-                   end                                     
-                   */
+                                        
                    // next chunk to complete a total of 128-bit write transaction;
                    state_next = ST_WRITE_SECOND;
                 end
@@ -497,42 +495,20 @@ module user_mem_ctrl
                 // need to check app_rdy here so that it acknowledges
                 // the write request from ST_WRITE_UPPER;
                 if(app_rdy && app_wdf_rdy) begin
-                    // prepare the signal;
-                    //app_cmd = MIG_CMD_WRITE;                                            
-                    //app_wdf_wren = 1'b1;
-                                        
-                    // prepare the write dummy data with masking;
-                    //app_wdf_mask = 8'hFF;   // mask all bytes;
-                    //app_wdf_data = 64'h0;
-                
-                    // test write data;
+                    // all data shall be written; so enable the mask;
                     app_wdf_mask = 8'h00;
-                    //app_wdf_data = {16'hFFFF, 16'hEEEE, 16'hDDDD, 16'hCCCC};  // dummy data;
-                    app_wdf_data = user_wr_data;
-                    
+                    // extract the first 64-bit chunk from the user;
+                    app_wdf_data = user_wr_data[127:64];
+                                        
                     // indicate that the data on the app_wdf_data[] bus in the current cycle is the last 
                     // data for the current request.
                     app_wdf_end = 1'b1; 
                     
                     // push it into the write MIG fifo                                            
-                    app_wdf_wren = 1'b1;                      
-                        
-                    /*
-                    if(app_rdy) begin
-                        app_cmd = MIG_CMD_WRITE;                        
-                        
-                        // write it into the write MIG fifo                                            
-                        app_wdf_wren = 1'b1;                      
-                        
-                        // submit the request;
-                        app_en = 1'b1;
-                                                
-                        // wait for the acknowledge for the write request;
-                        // to confirm the write request has been accepted;
-                        state_next = ST_WRITE_DONE;
-                    end        
-                    */
-                   state_next = ST_WRITE_SUBMIT; 
+                    app_wdf_wren = 1'b1;         
+                    
+                    // submit the request;                                                         
+                    state_next = ST_WRITE_SUBMIT; 
                 end                
             end
             ST_WRITE_SUBMIT: begin
@@ -549,8 +525,7 @@ module user_mem_ctrl
                        
             ST_WRITE_DONE: begin
                 // wait for the acknowledge for the write request;
-                // to confirm the write request has been accepted;
-                //app_en = 1'b1;  // maintain;
+                // to confirm the write request has been accepted;                
                 if(app_rdy) begin
                     transaction_complete_async = 1'b1;  // write transaction done;
                     state_next = ST_IDLE;
@@ -563,12 +538,12 @@ module user_mem_ctrl
                     // wait for the MIG to put valid data on the bus;
                     if(app_rd_data_valid) begin
                         // ??? to do some masking here ??                        
-                        user_rd_data = app_rd_data;                
+                            user_rd_data[63:0] = app_rd_data;                
                 
                         // wait for the mig to flag the end of the data;
                         if(app_rd_data_end) begin
                             // ??? to do some masking here ??                        
-                            user_rd_data = app_rd_data;                
+                            user_rd_data[127:64] = app_rd_data;                
                                         
                             transaction_complete_async = 1'b1;  // signal to the user;
                             state_next = ST_IDLE;
