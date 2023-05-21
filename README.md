@@ -83,3 +83,9 @@ To implement a synchronous wrapper around Xilinx Memory-interface-generated (MIG
 
 ## Reference
 
+1. DDR2 SDRAM Memory Datasheet https://www.micron.com/-/media/client/global/documents/products/data-sheet/dram/ddr3/2gb_1_35v_ddr3l.pdf
+2. 7 Series FPGAs Memory Interface Solutions v1.9 and v1.9a User Guide https://docs.xilinx.com/v/u/1.9-English/ug586_7Series_MIS
+3. 34779 - MIG 7 Series and Virtex-6 DDR2/DDR3 - User Interface - Addressing https://support.xilinx.com/s/article/34779?language=en_US
+4. Digilent Nexys A7 Reference Manual https://digilent.com/reference/programmable-logic/nexys-a7/reference-manual
+
+
