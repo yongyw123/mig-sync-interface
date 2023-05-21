@@ -170,11 +170,11 @@ module user_mem_ctrl_tb
             
             @(posedge clk_sys);            
             // check if the read data matches with what it is written at a given address;
-             assert((user_rd_data) == TEST_ARRAY[i]) $display("Test index: %d, Time; %t, Status: OK, data matches.", i, $time);  
+             assert(user_rd_data == TEST_ARRAY[i]) $display("Test index: %0d, Time; %t, Status: OK, read data matches with the written data at Address: %0d", i, $time, user_addr);  
              else begin 
                     $error("Read Data does not match with the Written Data @ time: %t, Address: %0d", $time, user_addr);
-                    $display("ERROR Encountered: terminate the simulation at once");
-                    $stop;                     
+                    $error("ERROR Encountered: terminate the simulation at once");
+                    $stop;  // stop the simulation immediately upon discovering a mismatch; as this should not happen unless intended;                     
              end            
          end
                 
