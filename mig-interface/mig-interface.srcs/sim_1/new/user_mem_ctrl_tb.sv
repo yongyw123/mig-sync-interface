@@ -30,6 +30,7 @@ module user_mem_ctrl_tb
         output logic user_rd_strobe,
         output logic [22:0] user_addr,
         output logic [127:0] user_wr_data,
+        input logic [127:0] user_rd_data,
         
         // uut status;
         input logic MIG_user_init_complete,        // MIG done calibarating and initializing the DDR2;
@@ -40,9 +41,13 @@ module user_mem_ctrl_tb
     
     localparam addr01 = 23'b0;
     localparam addr02 = {22'b0, 1'b1};
+    localparam TEST_ARRAY_SIZE = 3;
+    bit[TEST_ARRAY_SIZE-1:0][127:0] TEST_ARRAY;
+    
     
     initial
     begin
+    
         /* test 01: first write */
         @(posedge clk_sys);
         user_wr_strobe <= 1'b0;
@@ -82,8 +87,7 @@ module user_mem_ctrl_tb
         // wait for the write transaction to complete
         @(posedge clk_sys);
         wait(MIG_user_transaction_complete == 1'b1);
-        #(1000);
-        
+        #(1000);        
                                 
         /* test 03: first read */                
         // enable read;
@@ -96,10 +100,11 @@ module user_mem_ctrl_tb
         @(posedge clk_sys);
         user_rd_strobe <= 1'b0;
     
+        // wait for the transaction to complete
         @(posedge clk_sys);
         wait(MIG_user_transaction_complete == 1'b1);
         
-        #(1000);
+        #(500);
         
         /* test 04: second read */                
         // enable read;
@@ -112,11 +117,64 @@ module user_mem_ctrl_tb
         @(posedge clk_sys);
         user_rd_strobe <= 1'b0;
     
+        // wait for the transaction to complete
         @(posedge clk_sys);
         wait(MIG_user_transaction_complete == 1'b1);
         
-        #(1000);
+        #(500);
         
+        /* test 04: sequential write's followed by sequential read's */
+        
+        // prepare an array of random data to write;
+        for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
+            TEST_ARRAY[i] = {128{$random}};        
+        end
+        
+        // sequential write;
+        for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
+            // setup;
+            @(posedge clk_sys);
+            user_wr_strobe <= 1'b0;                    
+            user_addr <= i;
+            user_wr_data = TEST_ARRAY[i];        
+            
+            // submit the write request;
+            @(posedge clk_sys);
+            user_wr_strobe <= 1'b1;                                            
+            @(posedge clk_sys);
+            user_wr_strobe <= 1'b0; // disable write;
+                        
+            // wait for the transaction to complete
+            @(posedge clk_sys);
+            wait(MIG_user_transaction_complete == 1'b1);
+            @(posedge clk_sys);
+        
+        end
+        
+        // sequential read;
+        for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
+            // setup;
+            @(posedge clk_sys);
+            user_rd_strobe <= 1'b0;                    
+            user_addr <= i;
+            user_wr_data = TEST_ARRAY[i];        
+            
+            // submit the read request;
+            @(posedge clk_sys);
+            user_rd_strobe <= 1'b1;                                            
+            @(posedge clk_sys);
+            user_rd_strobe <= 1'b0; 
+                        
+            // wait for the transaction to complete
+            @(posedge clk_sys);
+            wait(MIG_user_transaction_complete == 1'b1);
+            
+            @(posedge clk_sys);            
+            // check if the read data matches with what it is written at a given address;
+             assert((user_rd_data + 1) == TEST_ARRAY[i]) $display("OK, data matches");  
+             else $error("ERROR: Data does not match @ time: %t, Address: %D", $time, user_addr);
+                     
+        end
         $stop;
     end
     
