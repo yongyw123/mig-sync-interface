@@ -35,11 +35,11 @@ module user_mem_ctrl_top_tb();
     // user signals for the uut;
     logic user_wr_strobe;             // write request;
     logic user_rd_strobe;             // read request;
-    logic [26:0] user_addr;           // address;
+    logic [22:0] user_addr;           // address;
     
     // data;
-    logic [63:0] user_wr_data;       
-    logic [63:0] user_rd_data;   // temporary;
+    logic [127:0] user_wr_data;       
+    logic [127:0] user_rd_data;   
     
     // status
     logic MIG_user_init_complete;        // MIG done calibarating and initializing the DDR2;

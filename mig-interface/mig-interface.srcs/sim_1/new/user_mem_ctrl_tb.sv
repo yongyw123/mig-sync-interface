@@ -28,8 +28,8 @@ module user_mem_ctrl_tb
         // stimulus for uut;
         output logic user_wr_strobe,
         output logic user_rd_strobe,
-        output logic [26:0] user_addr,
-        output logic [63:0] user_wr_data,
+        output logic [22:0] user_addr,
+        output logic [127:0] user_wr_data,
         
         // uut status;
         input logic MIG_user_init_complete,        // MIG done calibarating and initializing the DDR2;
@@ -38,18 +38,17 @@ module user_mem_ctrl_tb
         
     );
     
-    localparam addr01 = 26'b0;
-    localparam addr02 = 26'b1;
+    localparam addr01 = 23'b0;
+    localparam addr02 = {22'b0, 1'b0};
     
     initial
     begin
         /* test 01: first write */
         @(posedge clk_sys);
         user_wr_strobe <= 1'b0;
-        user_rd_strobe <= 1'b0;
-        //user_addr <= {22'b0, 2'b10, 3'b000};
+        user_rd_strobe <= 1'b0;        
         user_addr <= addr01;
-        user_wr_data = {16'hDDDD, 16'hCCCC, 16'hBBBB, 16'hAAAA};
+        user_wr_data = {64'hFFFF_EEEE_DDDD_CCCC, 64'hBBBB_AAAA_9999_8888};        
                
         wait(MIG_user_init_complete == 1'b1);
         #(100);
@@ -70,7 +69,7 @@ module user_mem_ctrl_tb
         /* test 02: second write */
         @(posedge clk_sys);
         user_addr <= addr02;
-        user_wr_data = {16'h4444, 16'h3333, 16'h2222, 16'h1111};
+        user_wr_data = {64'h7777_6666_5555_4444, 64'h3333_2222_1111_0A0A};
                         
         // submit the write request;
         @(posedge clk_sys);
