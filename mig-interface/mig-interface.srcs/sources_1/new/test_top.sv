@@ -102,6 +102,25 @@ module test_top
     typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
     state_type state_reg, state_next;    
     
+    // register to filter the glitch when writing the write data;
+    // there is a register within the uut for read data; so not necessary;    
+    logic [127:0] wr_data_reg, wr_data_next;
+    
+    // register to filter addr glitch when issuing;
+    logic [22:0] user_addr_reg, user_addr_next;
+    
+    // counter/timer;
+    // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
+    //localparam TIMER_THRESHOLD = 200_000_000;
+    localparam TIMER_THRESHOLD = 2;
+    logic [27:0] timer_reg, timer_next;
+    
+    // traffic generator to issue the addr;
+    // here we just simply use incremental basis;
+    //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
+    localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
+    logic [15:0] index_reg, index_next;
+    
     /*--------------------------------------
     * instantiation 
     --------------------------------------*/
@@ -130,16 +149,22 @@ module test_top
     assign clk_mem = clkout_200M;  
     
     ////////////////////////////////////////////////////////////////////////////////////
-    // ff;
+     // ff;
     always_ff @(posedge clk_sys, posedge rst_sys)
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
         if(rst_sys) begin
+            wr_data_reg <= 0;
+            timer_reg <= 0;
+            index_reg <= 0;
             state_reg <= ST_CHECK_INIT;
-                     
+            user_addr_reg <= 0;         
         end
         else begin
+            wr_data_reg <= wr_data_next;
+            timer_reg <= timer_next;
+            index_reg <= index_next;
             state_reg <= state_next;
-            
+            user_addr_reg <= user_addr_next;
         end
     
     
