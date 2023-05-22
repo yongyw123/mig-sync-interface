@@ -232,7 +232,7 @@ module user_mem_ctrl_tb
                     $stop;  // stop the simulation immediately upon discovering a mismatch; as this should not happen unless intended;                     
              end            
          end
-               
+        $display("completed all %0d test; status: OK", i);   
         $stop;
         
     end
