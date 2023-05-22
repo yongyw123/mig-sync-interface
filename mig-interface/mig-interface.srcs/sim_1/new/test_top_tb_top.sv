@@ -62,7 +62,7 @@ module test_top_tb_top();
     https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US
     
     */
-    /*
+    
     ddr2_model ddr2_model_unit
     (
         .ck(ddr2_ck_p),
@@ -81,7 +81,7 @@ module test_top_tb_top();
         .rdqs_n(),
         .odt(ddr2_odt)
     );
-    */
+    
     
     // uut;
     test_top uut (.*);

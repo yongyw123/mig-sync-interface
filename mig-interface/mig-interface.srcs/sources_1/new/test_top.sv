@@ -51,7 +51,6 @@ module test_top
       
         // LEDs;
         output logic [15:0] LED,
-        
                 
         // ddr2 sdram memory interface (defined by the imported ucf file);
         output logic [12:0] ddr2_addr,   // address; 
@@ -154,7 +153,69 @@ module test_top
        // Clock in ports
         .clk_in1(clk_in_100M)
     );      // input clk_in1
-    
+            
+    user_mem_ctrl uut
+    (
+        //  from the user system
+        // general, 
+        .clk_sys(clk_sys),    // 100MHz,
+        .rst_sys(rst_sys),    // asynchronous system reset,
+        
+        //interface between the user system and the memory controller,
+        .user_wr_strobe(user_wr_strobe),             // write request,
+        .user_rd_strobe(user_rd_strobe),             // read request,
+        .user_addr(user_addr),           // address,
+        
+        // data,
+        .user_wr_data(user_wr_data),   
+        .user_rd_data(user_rd_data),         
+        
+        // status
+        .MIG_user_init_complete(MIG_user_init_complete),        // MIG done calibarating and initializing the DDR2,
+        .MIG_user_ready(MIG_user_ready),                // this implies init_complete and also other status, see UG586, app_rdy,
+        .MIG_user_transaction_complete(MIG_user_transaction_complete), // read/write transaction complete?
+        
+        //  MIG interface 
+        // memory system,
+        .clk_mem(clk_mem),        // to drive MIG memory clock,
+        .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
+        
+        // ddr2 sdram memory interface (defined by the imported ucf file),
+        .ddr2_addr(ddr2_addr),   // address, 
+        .ddr2_ba(ddr2_ba),    
+        .ddr2_cas_n(ddr2_cas_n),  // output                                       ddr2_cas_n
+        .ddr2_ck_n(ddr2_ck_n),  // output [0:0]                        ddr2_ck_n
+        .ddr2_ck_p(ddr2_ck_p),  // output [0:0]                        ddr2_ck_p
+        .ddr2_cke(ddr2_cke),  // output [0:0]                       ddr2_cke
+        .ddr2_ras_n(ddr2_ras_n),  // output                                       ddr2_ras_n
+        .ddr2_we_n(ddr2_we_n),  // output                                       ddr2_we_n
+        .ddr2_dq(ddr2_dq),  // inout [15:0]                         ddr2_dq
+        .ddr2_dqs_n(ddr2_dqs_n),  // inout [1:0]                        ddr2_dqs_n
+        .ddr2_dqs_p(ddr2_dqs_p),  // inout [1:0]                        ddr2_dqs_p
+        
+        // not used;
+        .init_calib_complete(),  // output                                       init_calib_complete
+        
+        .ddr2_cs_n(ddr2_cs_n),  // output [0:0]           ddr2_cs_n
+        .ddr2_dm(ddr2_dm),  // output [1:0]                        ddr2_dm
+        .ddr2_odt(ddr2_odt),  // output [0:0]                       ddr2_odt
+       
+        //  debugging interface (not used)            
+        .debug_app_rd_data_valid(),
+        .debug_app_rd_data_end(),
+        .debug_ui_clk(),
+        .debug_ui_clk_sync_rst(),
+        .debug_app_rdy(),
+        .debug_app_wdf_rdy(),
+        .debug_app_en(),
+        .debug_app_wdf_data(),
+        .debug_app_wdf_end(),
+        .debug_app_wdf_wren(),
+        .debug_init_calib_complete(),
+        .debug_transaction_complete_async(),
+        .debug_app_cmd(),
+        .debug_app_rd_data()
+    );
     
     /*--------------------------------------
     * signal mapping; 
