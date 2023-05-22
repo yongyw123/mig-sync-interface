@@ -42,11 +42,25 @@ module user_mem_ctrl_tb
     localparam addr01 = 23'b0;
     localparam addr02 = {22'b0, 1'b1};
     localparam TEST_ARRAY_SIZE = 1000;
+    //localparam TEST_ARRAY_SIZE = 2;
     bit[TEST_ARRAY_SIZE-1:0][127:0] TEST_ARRAY;
     logic [127:0] random_data_set_01 = {127{$random}};
     
     initial
     begin        
+        /* setting up logging system 
+        * created file could be located under ./sim_1/behav/xsim
+        */
+        int fd; // file descriptor;
+        fd = $fopen("./simulation_logging_user_mem_ctrl_tb.txt", "a");
+        if(fd) 
+            $display("File was opened successfully: %0d", fd);
+        else begin        
+            $display("File was NOT opened successfully: %0d", fd);
+            $display("Something went wrong. Terminate the simulation at once");
+            $fclose(fd);
+        end
+        
         /* test 01: first write */
         @(posedge clk_sys);
         user_wr_strobe <= 1'b0;
@@ -225,14 +239,25 @@ module user_mem_ctrl_tb
             
             @(posedge clk_sys);            
             // check if the read data matches with what it is written at a given address;
-             assert(user_rd_data == TEST_ARRAY[i]) $display("Test index: %0d, Time; %t, Status: OK, read data matches with the written data at Address: %0d", i, $time, user_addr);  
+             assert(user_rd_data == TEST_ARRAY[i]) 
+             begin
+                $fdisplay(fd, "Test index: %0d, Time; %t, Status: OK, read data matches with the written data at Address: %0d", i, $time, user_addr);
+                $display("Test index: %0d, Time; %t, Status: OK, read data matches with the written data at Address: %0d", i, $time, user_addr);
+             end  
              else begin 
                     $error("Read Data does not match with the Written Data @ time: %t, Address: %0d", $time, user_addr);
                     $error("ERROR Encountered: terminate the simulation at once");
+                                    
+                    // log it;                    
+                    $fdisplay(fd, "ERROR: Read Data does not match with the Written Data @ time: %t, Address: %0d", $time, user_addr);
+                    $fdisplay(fd, "ERROR Encountered: terminate the simulation at once");
                     $stop;  // stop the simulation immediately upon discovering a mismatch; as this should not happen unless intended;                     
              end            
          end
-        $display("completed all %0d test; status: OK", TEST_ARRAY_SIZE);   
+        
+        $display("completed all %0d test; status: OK", TEST_ARRAY_SIZE);
+        $fdisplay(fd, "completed all %0d test; status: OK", TEST_ARRAY_SIZE);
+        $fclose(fd);   
         $stop;
         
     end
