@@ -41,9 +41,9 @@ module user_mem_ctrl_tb
     
     localparam addr01 = 23'b0;
     localparam addr02 = {22'b0, 1'b1};
-    localparam TEST_ARRAY_SIZE = 100;
+    localparam TEST_ARRAY_SIZE = 1000;
     bit[TEST_ARRAY_SIZE-1:0][127:0] TEST_ARRAY;
-    
+    logic [127:0] random_data_set_01 = {127{$random}};
     
     initial
     begin        
@@ -122,7 +122,62 @@ module user_mem_ctrl_tb
         
         #(500);
         
-        /* test 04: sequential write's followed by sequential read's */
+        /* test 04: sequential: one write immediately followed by one read 
+        expectation: not sure;
+        because even though one write request is submitted and write transaction complete
+        is asserted, it does not imply that the data is already written to the memory ...
+        
+        observation:
+        1. read data actually matches with the previous write data!
+        2. the dqs line is bidirectional;
+        3. so, when writing is ongoing, the dqs is occupied even though the read request
+            may have already submitted at this point; data will not be read until this
+            line is released to service this read request;        
+        
+        Explanation:
+        1. the observation above confirms the datasheet and the support article linked below;
+        2. that is, MIG controller could service concurrent transactions; BUT;
+        3. these transactions are pipelined, and successive transaction will overlap BUT
+            they are initiated and completed serially (not concurrently);
+        4. support article: https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US
+        5. ddr2 datasheet: https://media-www.micron.com/-/media/client/global/documents/products/data-sheet/dram/ddr2/1gb_ddr2.pdf?rev=854b480189b84d558d466bc18efe270c*/
+        // setup;
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b0;                    
+        user_addr <= 3;
+        
+        user_wr_data <= random_data_set_01;        
+        
+        // submit the write request;
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b1;                                            
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b0; // disable write;
+                    
+        // wait for the transaction to complete
+        @(posedge clk_sys);
+        wait(MIG_user_transaction_complete == 1'b1);
+    
+        // submit the read request;
+        @(posedge clk_sys);
+        user_rd_strobe <= 1'b1;                                            
+        @(posedge clk_sys);
+        user_rd_strobe <= 1'b0; 
+                    
+        // wait for the transaction to complete
+        @(posedge clk_sys);
+        wait(MIG_user_transaction_complete == 1'b1);
+        
+        assert(user_rd_data == random_data_set_01) $display("Time; %t, Status: OK, read data matches with the written data at Address: %0d", $time, user_addr);  
+             else begin 
+                    $error("Read Data does not match with the Written Data @ time: %t, Address: %0d", $time, user_addr);
+                    $error("ERROR Encountered: terminate the simulation at once");
+                    $stop;  // stop the simulation immediately upon discovering a mismatch; as this should not happen unless intended;                     
+             end            
+        
+        #(1000);
+        
+        /* test 05: burst write's then only burst read's */
         
         // prepare an array of random data to write;
         for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
@@ -177,7 +232,7 @@ module user_mem_ctrl_tb
                     $stop;  // stop the simulation immediately upon discovering a mismatch; as this should not happen unless intended;                     
              end            
          end
-                
+               
         $stop;
         
     end
