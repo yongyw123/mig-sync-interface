@@ -84,7 +84,16 @@ module test_top_tb_top();
     
     
     // uut;
-    test_top uut (.*);
+    test_top 
+    #(
+        // 100 ns second pause time for simulation instead 2.0 second for real testing;
+        .TIMER_THRESHOLD(10),
+    
+        // the range of address is resticted to integer 10 for simulation;   
+        .INDEX_THRESHOLD(10)
+    )
+    uut 
+    (.*);
     
     // test stimulus;
     test_top_tb tb(.*);
@@ -109,10 +118,11 @@ module test_top_tb_top();
     
     /* monitoring */
     initial begin
-           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s",
+           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d",
             $time,
             uut.state_reg.name,
-            uut.state_next.name            
+            uut.state_next.name,
+            uut.LED            
             );           
     end                        
 

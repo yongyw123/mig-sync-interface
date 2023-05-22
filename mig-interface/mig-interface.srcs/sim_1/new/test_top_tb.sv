@@ -26,16 +26,21 @@ module test_top_tb
         input logic [15:0] LED               
     );
     
-    //localparam TERMINATE_THRESHOLD = 5;
+    
     initial begin
-        #(1000);
-        @(posedge clk_in_100M);        
-        wait(LED == 5);
+        
+        // wait for the LED to increase;
+        // and wraps around twice to conclude the simulation;    
+        wait(LED == 1);
+        
+        // first round is done;
+        wait(LED == 0);
+        wait(LED == 1);
+        
+        // second round is done;
+        wait(LED == 0);
+        
         @(posedge clk_in_100M);
-        @(posedge clk_in_100M);
-        @(posedge clk_in_100M);
-        @(posedge clk_in_100M);
-        #(10000);
         $stop; 
     end
 endmodule

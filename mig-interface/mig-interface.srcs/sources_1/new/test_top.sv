@@ -39,7 +39,16 @@ Note:
 
 */    
 
-module test_top    
+module test_top   
+    #(parameter
+        // counter/timer;
+        // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
+        TIMER_THRESHOLD = 200_000_000,
+        
+        // traffic generator to issue the addr;
+        // here we just simply use incremental basis;
+        INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
+    ) 
     (
         // general;
         // 100 MHz;
@@ -128,13 +137,13 @@ module test_top
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
     //localparam TIMER_THRESHOLD = 200_000_000;
-    localparam TIMER_THRESHOLD = 2;
+    //localparam TIMER_THRESHOLD = 10;
     logic [27:0] timer_reg, timer_next;
     
     // traffic generator to issue the addr;
     // here we just simply use incremental basis;
     //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
-    localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
+    //localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
     logic [15:0] index_reg, index_next;
     
     /*--------------------------------------
@@ -244,8 +253,7 @@ module test_top
             state_reg <= state_next;
             user_addr_reg <= user_addr_next;
         end
-    
-    
+
     // fsm;
     always_comb begin
        // default;
@@ -272,21 +280,32 @@ module test_top
         8. ST_LED_WAIT: timer wait for led display;    
         9. ST_GEN: to generate the next test data;
         */
+        
+        /* NOTE
+        Some states defined above are redundant;
+        In fact, the states could be combined to reduce the 
+        number of states;...        
+        */
             
         case(state_reg)
             ST_CHECK_INIT: begin
+                // important to wait for the memory to be initialized/calibrated;
+                // block until it finishes;
                 if(MIG_user_init_complete) begin
                     state_next = ST_WRITE_SETUP;
                 end
             end      
             
             ST_WRITE_SETUP: begin
+                // prepare the write data and address and hold them
+                // stable for the upcoming write request;
                 wr_data_next = index_reg;
                 user_addr_next = index_reg;
                 state_next = ST_WRITE;            
             end
             
             ST_WRITE: begin
+                // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
                     user_wr_strobe = 1'b1;
                     state_next = ST_WRITE_WAIT;
@@ -300,17 +319,21 @@ module test_top
             end
             
             ST_READ_SETUP: begin
+                 
+                // note that the the address line is already
+                // stable in the default section above; for the upcoming read request;
                 state_next = ST_READ;            
             end
             
             ST_READ: begin
+                // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
                     user_rd_strobe = 1'b1;
                     state_next = ST_READ_WAIT;
                 end
             end
             
-            ST_READ_WAIT: begin
+            ST_READ_WAIT: begin               
                 if(MIG_user_transaction_complete) begin
                     timer_next = 0; // load the timer;
                     state_next = ST_LED_WAIT;
@@ -318,7 +341,8 @@ module test_top
             end 
             
             ST_LED_WAIT: begin
-                if(timer_reg == 10) begin
+                // do not move on after the timer has expired;
+                if(timer_reg == (TIMER_THRESHOLD-1)) begin
                     state_next = ST_GEN;     
                 end 
                 else begin
@@ -327,10 +351,14 @@ module test_top
             end
         
             ST_GEN: begin
-                state_next = ST_WRITE_SETUP;
+                // for now; incremental based;
                 index_next = index_reg + 1;
+                
+                // free running;
+                state_next = ST_WRITE_SETUP;
+                
                 // wraps around after certain threshold;                
-                if(index_reg == 10) begin
+                if(index_reg == (INDEX_THRESHOLD-1)) begin
                     index_next = 0;
                 end                                            
             end
