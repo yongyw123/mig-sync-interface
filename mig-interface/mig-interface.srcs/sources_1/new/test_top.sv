@@ -281,15 +281,22 @@ module test_top
             end      
             
             ST_WRITE_SETUP: begin
+                wr_data_next = index_reg;
+                user_addr_next = index_reg;
                 state_next = ST_WRITE;            
             end
             
             ST_WRITE: begin
-                state_next = ST_WRITE_WAIT;
+                if(MIG_user_ready) begin
+                    user_wr_strobe = 1'b1;
+                    state_next = ST_WRITE_WAIT;
+                end
             end
         
             ST_WRITE_WAIT: begin
-                state_next = ST_READ_SETUP;                                
+                if(MIG_user_transaction_complete) begin 
+                    state_next = ST_READ_SETUP;
+                end                                
             end
             
             ST_READ_SETUP: begin
