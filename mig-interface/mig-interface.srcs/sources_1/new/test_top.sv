@@ -275,8 +275,9 @@ module test_top
             
         case(state_reg)
             ST_CHECK_INIT: begin
-                state_next = ST_WRITE_SETUP;
-  
+                if(MIG_user_init_complete) begin
+                    state_next = ST_WRITE_SETUP;
+                end
             end      
             
             ST_WRITE_SETUP: begin
