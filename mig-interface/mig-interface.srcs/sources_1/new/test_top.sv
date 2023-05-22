@@ -312,12 +312,18 @@ module test_top
             
             ST_READ_WAIT: begin
                 if(MIG_user_transaction_complete) begin
+                    timer_next = 0; // load the timer;
                     state_next = ST_LED_WAIT;
                 end                                                
             end 
             
             ST_LED_WAIT: begin
-                state_next = ST_GEN;                
+                if(timer_reg == 10) begin
+                    state_next = ST_GEN;     
+                end 
+                else begin
+                    timer_next = timer_reg + 1;
+                end           
             end
         
             ST_GEN: begin                
