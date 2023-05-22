@@ -304,11 +304,16 @@ module test_top
             end
             
             ST_READ: begin
-                state_next = ST_READ_WAIT;
+                if(MIG_user_ready) begin
+                    user_rd_strobe = 1'b1;
+                    state_next = ST_READ_WAIT;
+                end
             end
             
             ST_READ_WAIT: begin
-                state_next = ST_LED_WAIT;                                                
+                if(MIG_user_transaction_complete) begin
+                    state_next = ST_LED_WAIT;
+                end                                                
             end 
             
             ST_LED_WAIT: begin
