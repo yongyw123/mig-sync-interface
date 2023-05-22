@@ -50,8 +50,9 @@ module test_top
         input logic CPU_RESETN,     
       
         // LEDs;
-        output logic [15:0] LED,
+        output logic [15:0] LED
         
+        /*
         // ddr2 sdram memory interface (defined by the imported ucf file);
         output logic [12:0] ddr2_addr,   // address; 
         output logic [2:0]  ddr2_ba,    
@@ -67,7 +68,7 @@ module test_top
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
         output logic [0:0] ddr2_odt  // output [0:0]                       ddr2_odt
-                               
+       */        
         
     );
     /*--------------------------------------
@@ -164,9 +165,10 @@ module test_top
         .clk_in1(clk_in_100M)
     );      // input clk_in1
 
+    /*
     user_mem_ctrl uut
     (
-        //*  from the user system
+        //  from the user system
         // general, 
         .clk_sys(clk_sys),    // 100MHz,
         .rst_sys(rst_sys),    // asynchronous system reset,
@@ -185,7 +187,7 @@ module test_top
         .MIG_user_ready(MIG_user_ready),                // this implies init_complete and also other status, see UG586, app_rdy,
         .MIG_user_transaction_complete(MIG_user_transaction_complete), // read/write transaction complete?
         
-        //*  MIG interface 
+        //  MIG interface 
         // memory system,
         .clk_mem(clk_mem),        // to drive MIG memory clock,
         .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
@@ -226,10 +228,10 @@ module test_top
         .debug_app_cmd(),
         .debug_app_rd_data()
     );
-
+    */
     ////////////////////////////////////////////////////////////////////////////////////
     // ff;
-    always_ff @(posedge clk_sys, posedge rst_sys) begin
+    always_ff @(posedge clk_sys, posedge rst_sys)
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
         if(rst_sys) begin
             wr_data_reg <= 0;
@@ -245,7 +247,7 @@ module test_top
             state_reg <= state_next;
             user_addr_reg <= user_addr_next;
         end
-    end
+    
     
     // fsm;
     always_comb begin
@@ -276,84 +278,41 @@ module test_top
             
         case(state_reg)
             ST_CHECK_INIT: begin
-                if(MIG_user_init_complete) begin
-                    state_next = ST_WRITE_SETUP;
-                end  
+                state_next = ST_WRITE_SETUP;
+  
             end      
             
             ST_WRITE_SETUP: begin
-                user_addr_next = index_reg;
-                wr_data_next = index_reg;
                 state_next = ST_WRITE;            
             end
             
             ST_WRITE: begin
-                // check if the memory is ready;
-                if(MIG_user_ready) begin            
-                    user_addr = user_addr_reg;
-                    user_wr_data = wr_data_reg;
-                    // submit the write request;
-                    user_wr_strobe = 1'b1;
-                    
-                    state_next = ST_WRITE_WAIT;
-                end
+                state_next = ST_WRITE_WAIT;
             end
         
             ST_WRITE_WAIT: begin
-                if(MIG_user_transaction_complete) begin
-                    state_next = ST_READ_SETUP;                                
-                end
+                state_next = ST_READ_SETUP;                                
             end
             
             ST_READ_SETUP: begin
-                user_addr_next = index_reg;
                 state_next = ST_READ;            
             end
             
             ST_READ: begin
-                if(MIG_user_ready)begin
-                    user_addr = user_addr_reg;
-                    user_rd_strobe = 1'b1;
-                    state_next = ST_READ_WAIT;
-                end            
+                state_next = ST_READ_WAIT;
             end
             
             ST_READ_WAIT: begin
-                if(MIG_user_transaction_complete) begin
-                    // set up the time;
-                    timer_next = 0;
-                    state_next = ST_LED_WAIT;                                                
-                end            
+                state_next = ST_LED_WAIT;                                                
             end 
             
             ST_LED_WAIT: begin
-                state_next = ST_GEN;
-                /*
-                // timer expired? generate next test index;
-                if(timer_reg == (TIMER_THRESHOLD-1)) begin
-                    state_next = ST_GEN;                     
-                 end
-                else begin
-                    timer_next = timer_reg + 1;
-                end
-                */
+                state_next = ST_GEN;                
             end
         
             ST_GEN: begin
                 index_next = index_reg + 1;
-                state_next = ST_WRITE_SETUP;
-                /* 
-                // generate the test index; and wrap around after 2^{16};
-                if(index_reg == (INDEX_THRESHOLD-1)) begin
-                    // reset;
-                    index_next = 0; 
-                    // free-running from the start;
-                    state_next = ST_WRITE_SETUP;
-                end
-                else begin
-                    index_next = index_reg + 1;
-                end
-                */                            
+                state_next = ST_WRITE_SETUP;                                            
             end
             
             default: ;  // nop;
@@ -361,5 +320,5 @@ module test_top
     end
     
     // led output;   
-    //assign LED =  user_rd_data[15:0];
+    assign LED =  user_rd_data[15:0];
 endmodule

@@ -30,7 +30,7 @@ module test_top_tb
     initial begin
         #(1000);
         @(posedge clk_in_100M);        
-        wait(LED == 5);
+        //wait(LED == 5);
         @(posedge clk_in_100M);
         @(posedge clk_in_100M);
         @(posedge clk_in_100M);
