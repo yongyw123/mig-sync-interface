@@ -41,6 +41,7 @@ DDR2 is burst oriented. With 4:1 clock ratio and memory data width of 16-bit, DD
 2. data width: 16-bit;
 3. write and read data width: 16-bit;
 4. ?? to fill up ??
+5. DDR2 is on Bank 34; (see the schematics);
 
 ### Note on MIG UI interface signals
 
@@ -65,6 +66,7 @@ The synchronous wrapper;
 1. sequential transfer (no concurrent read and write transaction)
 2. must hold addr and write data stable;2
 3. criteria on the write request, and read request;
+4. Unlike the read operation, there is no viable MIG UI interface signal to use to reliably assert exactly when the data is written to the DDR2 external memory. 
 ??
 
 ---
@@ -157,6 +159,11 @@ The FSM states are defined as follows:
 
 ### Set 01: Write Transaction
 
+See Figure ??, simulation shows it takes about ?? ns for the data to be written to the memory after the write request has been submitted and accepted. This is asserted by the "ddr2_dq" line shown in Figure ??. This confirms that:
+
+1. 
+
+
 ### Set 02: Read Transaction
 
 
@@ -185,7 +192,7 @@ By above, Read data actually matches with the previous write data at the same ad
 
 **Possible Explanation:**
 
-1. The observation above matchesw with the datasheet and the support article linked below.
+1. The observation above matches with the datasheet and the support article linked below.
 2. That is, MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently). 
 3. Support article: <https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US>
 5. DDR2 datasheet: <https://media-www.micron.com/-/media/client/global/documents/products/data-sheet/dram/ddr2/1gb_ddr2.pdf?rev=854b480189b84d558d466bc18efe270c*/>
