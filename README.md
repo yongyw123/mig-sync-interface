@@ -26,8 +26,9 @@ To implement a simple synchronous wrapper around Xilinx Memory-interface-generat
 6. [Simulation Results](#simulation-results)
 7. [HW Test](#hw-test)
 8. [Note on Simulation](#note-on-the-simulation)
-9. [TODO?](#todo)
-10. [Reference](#reference)
+9. [Clock Constraint](#clock-constraint)
+10. [TODO?](#todo)
+11. [Reference](#reference)
 
 ## Background on DDR2 External Memory in General
 
@@ -213,6 +214,10 @@ add testing circuit result;
 3. Reference: <https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US>
 
 ---
+
+## Clock Constraint
+
+??
 
 ## TODO?
 
