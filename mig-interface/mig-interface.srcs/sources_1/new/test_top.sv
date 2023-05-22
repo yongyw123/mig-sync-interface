@@ -40,7 +40,17 @@ Note:
 */    
 
 module test_top
-
+    #(parameter
+        // counter/timer;
+        // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
+        TIMER_THRESHOLD = 200_000_000,
+        
+        
+        // traffic generator to issue the addr;
+        // here we just simply use incremental basis;
+        INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
+    )
+    
     (
         // general;
         // 100 MHz;
@@ -138,12 +148,12 @@ module test_top
     
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
-    localparam TIMER_THRESHOLD = 200_000_000;
+    //localparam TIMER_THRESHOLD = 200_000_000;
     logic [27:0] timer_reg, timer_next;
     
     // traffic generator to issue the addr;
     // here we just simply use incremental basis;
-    localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
+    //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
     logic [15:0] index_reg, index_next;
     
     /*--------------------------------------
@@ -338,12 +348,53 @@ module test_top
                 end
             end
             
+            ST_READ_SETUP: begin
+                user_addr_next = index_reg;
+                state_next = ST_READ;            
+            end
             
+            ST_READ: begin
+                if(MIG_user_ready)begin
+                    user_addr = user_addr_reg;
+                    user_rd_strobe = 1'b1;
+                    state_next = ST_READ_WAIT;
+                end            
+            end
+            
+            ST_READ_WAIT: begin
+                if(MIG_user_transaction_complete) begin
+                    // set up the time;
+                    timer_next = 0;
+                    state_next = ST_LED_WAIT;                                                
+                end            
+            end 
+            
+            ST_LED_WAIT: begin
+                // timer expired? generate next test index;
+                if(timer_reg == (TIMER_THRESHOLD-1)) begin
+                    state_next = ST_GEN;
+                 end
+                else begin
+                    timer_next = timer_reg + 1;
+                end
+            end
         
+            ST_GEN: begin
+                // generate the test index; and wrap around after 2^{16};
+                if(index_reg == (INDEX_THRESHOLD-1)) begin
+                    // reset;
+                    index_next = 0; 
+                    // free-running from the start;
+                    state_next = ST_WRITE_SETUP;
+                end
+                else begin
+                    index_next = index_reg + 1;
+                end                            
+            end
             default: ;  // nop;
         endcase
-    
-    
     end
-        
+    
+    // led output;   
+    assign LED =  user_rd_data[15:0];
 endmodule
