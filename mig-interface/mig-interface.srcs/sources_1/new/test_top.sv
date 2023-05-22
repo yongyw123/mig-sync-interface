@@ -170,8 +170,18 @@ module test_top
     
     // fsm;
     always_comb begin
-        // default;
-        state_next = state_reg;                                    
+       // default;
+        wr_data_next = wr_data_reg;
+        timer_next = timer_reg;
+        index_next = index_reg;
+        state_next = state_reg;
+        user_addr_next = user_addr_reg;
+                
+        user_wr_strobe = 1'b0;
+        user_rd_strobe = 1'b0;
+        user_addr = user_addr_reg;
+        user_wr_data = wr_data_reg;
+                                            
         /* 
         state:
         1. ST_CHECK_INIT: wait for the memory initialization to complete before starting everything else;
