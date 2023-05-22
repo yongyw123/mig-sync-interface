@@ -118,8 +118,8 @@ A simplified FSM is shown below with the states defined as follows:
 | ST_WRITE_FIRST | to push the first 64-bit batch to the MIG Write FIFO. |
 | ST_WRITE_SECOND | to push the second 64-bit batch to the MIG Write FIFO. |
 | ST_WRITE_SUBMIT | to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER). |
-| ST_WRITE_DONE | wait for the mig to acknowledge the write request to confirm it has been accepted. |
-| ST_READ | to read from the memory. |
+| ST_WRITE_DONE | to wait for MIG to acknowledge the write request to confirm it has been accepted. |
+| ST_READ | to wait for MIG to signal data_valid and data_end to read the data. |
 
 ---
 
