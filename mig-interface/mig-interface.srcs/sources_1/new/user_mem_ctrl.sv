@@ -233,7 +233,7 @@ module user_mem_ctrl
     * ST_WRITE_SECOND: to push the second 64-bit batch to the MIG Write FIFO; 
     * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
     * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
-    * ST_READ: to read from the memory;
+    * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
     *-----------------------------------------------*/
     
     typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_READ} state_type;
@@ -448,9 +448,9 @@ module user_mem_ctrl
         * ST_WRITE_SECOND: to push the second 64-bit batch to the MIG Write FIFO; 
         * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
         * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
-        * ST_READ: to read from the memory;
+        * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
         *-----------------------------------------------*/
-    
+            
         case(state_reg) 
             ST_WAIT_INIT_COMPLETE: begin
                 if(init_calib_complete) begin
@@ -575,28 +575,5 @@ module user_mem_ctrl
     * to pack two batches of 64-bit into 128-bit user read data;
     *-----------------------------------------------*/
     assign user_rd_data = {app_rd_data_sbatch_reg, app_rd_data_fbatch_reg};
-    
-    /* -----------------------------------------------
-    * next state to pack 64-bit into 128-bit user read data;
-    *-----------------------------------------------*/
-    /*
-    always_comb begin
-        // default;
-        app_rd_data_fbatch_next = app_rd_data_fbatch_reg;
-        app_rd_data_sbatch_next = app_rd_data_sbatch_reg;
-        if(state_reg == ST_READ) begin
-            // first 64-bit batch;
-            if(app_rd_data_valid && ~app_rd_data_end) begin
-                app_rd_data_fbatch_next = app_rd_data; 
-            end
-            // second batch;
-            else if(app_rd_data_valid && app_rd_data_end) begin
-                app_rd_data_sbatch_next = app_rd_data; 
-            end            
-        end
-    end
-    // output for the read data;
-    assign
-    */
-    
+           
 endmodule
