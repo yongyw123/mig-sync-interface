@@ -326,8 +326,13 @@ module test_top
                 end           
             end
         
-            ST_GEN: begin                
-                state_next = ST_WRITE_SETUP;                                            
+            ST_GEN: begin
+                state_next = ST_WRITE_SETUP;
+                index_next = index_reg + 1;
+                // wraps around after certain threshold;                
+                if(index_reg == 10) begin
+                    index_next = 0;
+                end                                            
             end
             
             default: ;  // nop;
