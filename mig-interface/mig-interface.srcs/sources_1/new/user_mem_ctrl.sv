@@ -379,8 +379,6 @@ module user_mem_ctrl
     // System Clock Ports
     .sys_clk_i                       (clk_mem),  // input                                        sys_clk_i
 
-    // Reference Clock Ports
-    .clk_ref_i                      (clk_mem),  // input                                        clk_ref_i
     .sys_rst                        (rst_mem_n) // input  sys_rst
 
     );
