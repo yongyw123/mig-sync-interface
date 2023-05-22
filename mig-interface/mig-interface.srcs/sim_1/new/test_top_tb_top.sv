@@ -109,15 +109,11 @@ module test_top_tb_top();
     
     /* monitoring */
     initial begin
-           
-           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d, uut.MIG_user_init_complete: %0b, uut.index_reg: %0d",
+           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s",
             $time,
             uut.state_reg.name,
-            uut.state_next.name,
-            LED,
-            uut.MIG_user_init_complete,
-            uut.index_reg
-            );
+            uut.state_next.name            
+            );           
     end                        
 
 endmodule
