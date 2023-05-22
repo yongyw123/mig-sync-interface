@@ -2,15 +2,16 @@
 
 To implement a simple synchronous wrapper around Xilinx Memory-interface-generated (MIG) interface with the DDR2 External Memory of this FPGA development board: Nexys A7-50T. This synchronous interface assumes sequential transfer: only a single write/read operation is allowed at a time for simplicity.
 
-Information available in the Xilinx User Guide and the relevant datasheets are sufficient to make use of the IP-generated interface. That said, the author lacks of background knowledge to understand to take advantage of this information. This README also aggregates the information, scribbles, note etc to compensate for this.
+Information available in the Xilinx User Guide 586 and the relevant datasheets are sufficient to make use of the IP-generated interface. That said, the author lacks of background knowledge to understand to take advantage of this information. This README also aggregates the information, scribbles, note etc to compensate for this.
 
-## Environment
+| **Environment** | **Description** |
+|-----------------|-----------------|
+| Development Board | Digilent Nexys A7-50T |
+| FPGA Part Number  | XC7A50T-1CSG324I      |
+| Vivado Version    | 2021.2                |
+| MIG Version       | 4.2 (Device 7 Series) |
 
-1. include MIG version;
-2. vivado version;
-3. ddr2 memory info;
-
-## MIG Configuration (Setup)
+## MIG Configuration
 
 1. PHY to controller clock ratio: 2:1
 2. data width: 16-bit;
@@ -25,26 +26,32 @@ This section is to explain the MIG configurations and the UI signals presented b
 
 1. "wr_data_mask": This bus is the byte enable (data mask) for the data currently being written to the external memory. The byte to the memory is written when the corresponding wr_data_mask signal is deasserted.
 
-### User Synchronous Interface (Wrapper)
+## User Synchronous Inteface - Port Description
+
+Figure ?? shows the block diagram; Table ?? lists the ports of the synchronous interface.
 
 ?? insert a table summarizing the signals;
 The synchronous wrapper;
 ?? insert some picture;
 ?? mention; which signal requires synchronizer;
+?? mention transaction complete status implies differently for write and read operation;
+
+---
 
 ## Background on DDR2 External Memory in General
 
 1. DDR2 is burst oriented.
 2. With 4:1 clock ratio and memory data width of 16-bit, DDR2 requires 8-transactions to take place across 4-clocks. This translates to a minimum transaction of 128 bits.
-4. With 2:1 clock ratio and memory data width of 16-bit, DDR requires 8-transactions to take place across 2 clocks; this translates to a minimum of 64-bit chunk per cycle. (still; 128-bit two cycles).
+3. With 2:1 clock ratio and memory data width of 16-bit, DDR requires 8-transactions to take place across 2 clocks; this translates to a minimum of 64-bit chunk per cycle. (still; 128-bit two cycles).
 
 ## Clock Domain Crossing (CDC)
 
 The system clock is asynchronous with the MIG UI Clock. The MIG interface has its own clock to drive the read and write operation; Thus, we have Clock Domain Crossing (CDC). Synchronizers are needed to handle the CDC.
 
-**IMPORTANT: However, only the control signals: {write request, read reques} shall be synchronized; it is the user's responsibility to hold the write data bus and the address stable upon requesting for write/read.** This is usually the case since we assume sequential transfer.
+**IMPORTANT:** However, only the control signals: {write request, read request} shall be synchronized; it is the user's responsibility to hold the write data bus and the address stable upon requesting for write/read. This is usually the case since we assume sequential transfer.
 
 There are two CDC cases:
+
 1. Case 01: from fast clock domain to slow clock domain;
 2. Case 02: from slow clock domain to fast clock domain;
 3. Dual-clock FIFO is a potential solution, but at the time of this writing, variants of Flip-flop sychronizers are considered.
@@ -54,16 +61,15 @@ There are two CDC cases:
 5. if the signal to sample is a pulse generated from the fast clock domain, and the fast clock rate is at least 1.5 times
     faster than slow clock rate, then a toggle synchronizer is needed; otherwise, there will be missed events;
 
+?? mention the conditions/criteria for the cdc cases above; ??
+
 ## Write Operation
 
-1. By above, when writing, two clock cycles are required to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle).
-2. Depending on the application, masking is required to mask out those bytes that are not required to be written;
-3. By above, the user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data.
+By above, when writing, it takes two clock cycles to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle). The user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data.
 
 ## Read Operation
 
-1. Similar to the write operation, it takes two cycles to read all 128-bit data.
-2. MIG will signal when the data is valid, and when the data is the last chunk on the data bus.
+Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the data is valid, and when the data is the last chunk on the data bus.
 
 ## Caution + Encountered Error
 
@@ -74,8 +80,8 @@ One need to push the data to the MIG write FIFO before submitting the write requ
 1. The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column. Insert ?? image ??
 2. See the DDR2 data sheet, the UI address provided by MIG is 27-bit wide:  {Rank: 1-bit; Row: 13-bit; Column: 10-bit; Bank: 3-bit}
 3. Since there is only one rank, this is hard-coded as zero.
-4. DDR2 native data width is 16-bit; this means each address bit represents 16-bit; (see the datasheet).
-5. By above, each read/write DDR2 entire transaction is 128-bit. This corresponds to 128/16 = 8 address bits (2^{3}). This implies that the three LSB bits of the address must be zero (the first three LSB column bits);
+4. DDR2 native data width is 16-bit; this means that the memory could accomodate a total of 2^{27} *(or 2^{26} with one rank)* 16-bit data.
+5. By above, each read/write DDR2 entire transaction is 128-bit. This corresponds to 128/16 = 8 chunks, (2^{3}), thus 3-bit. This implies that the three LSB bits of the address must be zero (the first three LSB column bits).
 6. Reference: <https://support.xilinx.com/s/article/33698?language=en_US>
 
 ### Mapping between User Address and MIG UI Address
@@ -90,20 +96,14 @@ app_addr = {1'b0, user_addr, 3'b000};
 
 ## Data Masking
 
-Not implemented;
-??? 128-bit;
-two reasons.
+Data masking option provided by the MIG is not used. All write/read transaction will be in 128-bit. Two reasons:
 
-1. explain; because the write, read time takes at 200 ns; (see the result below-)
-2. by above, each operation takes about 200ns; but the effective rate "will be spread across" if more data is packed within one operation;
-explain, the timing parameters; check the datasheeet; this has been abstracted away from the mig;
-so, it is inefficient to use only, say 16-bit for one transaction;
+1. It takes about 200ns (see the Simulation Result) to complete the entire (read/write) transaction. This is because DDR2 is burst oriented. With or without data masking, 128-bit transaction will be conducted. It is inefficient to use only, say 16-bit per transaction. Alternatively, the effective rate "will be spread across" if more data is packed within one operation.
+2. Data masking could always be done on the application side.
 
 ### Application Setup
 
-1. By above, 128-bit transaction for read/write is in place as not to waste the memory space.
-2. Thus, it is up to the application needs to adjust with the setup, or to do the necessary masking on both ends: read/write.
-3. For example, if the application write data is only 16-bit, the application needs to accumulate/pack 8 data of 16-bit before writing it.
+By above, 128-bit transaction for read/write is in place as not to waste the memory space. Thus, it is up to the application to adjust with the setup, or to do the necessary masking on both ends: read/write. For example, if the application write data is only 16-bit, the application needs to accumulate/pack 8 data of 16-bit before writing it.
 
 ## FSM
 
@@ -121,9 +121,11 @@ A simplified FSM is shown below with the states defined as follows:
 | ST_WRITE_DONE | wait for the mig to acknowledge the write request to confirm it has been accepted. |
 | ST_READ | to read from the memory. |
 
+---
+
 ## Result
 
-1. add simulation;
+1. add simulation; check if it matches with the abstracted timing parameters; t_{ras}, ... etc;
 2. add write and read time;
 3. add testing circuit result;
 
@@ -132,6 +134,8 @@ A simplified FSM is shown below with the states defined as follows:
 1. When simulating with the (ip-generated) MIG interface core, one needs to import the simulation files from the IP-examples: ddr2_model.v and ddr2_model_parameters.vh
 2. These simulation files provides a DDR2 model for the MIG interface to interface with.
 3. Reference: <https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US>
+
+---
 
 ## TODO?
 
