@@ -65,6 +65,24 @@ module test_top
     logic clkout_100M; // to drive the rest of the system;
     logic locked;
     
+    /////////// ddr2 MIG general signals
+    // user signals for the uut;
+    logic user_wr_strobe;             // write request;
+    logic user_rd_strobe;             // read request;
+    logic [22:0] user_addr;           // address;
+    
+    // data;
+    logic [127:0] user_wr_data;       
+    logic [127:0] user_rd_data;   
+    
+    // status
+    logic MIG_user_init_complete;        // MIG done calibarating and initializing the DDR2;
+    logic MIG_user_ready;                // this implies init_complete and also other status; see UG586; app_rdy;
+    logic MIG_user_transaction_complete; // read/write transaction complete?
+         
+    logic clk_mem;    // MIG memory clock;
+    logic rst_mem_n;    // active low to reset the mig interface;
+    
     /*--------------------------------------
     * application test signals 
     --------------------------------------*/    
@@ -108,6 +126,9 @@ module test_top
     assign clk_sys = clkout_100M;
     assign rst_sys = ~CPU_RESETN; // active high for system reset;
         
+    assign rst_mem_n = (!rst_sys) && (locked);
+    assign clk_mem = clkout_200M;  
+    
     ////////////////////////////////////////////////////////////////////////////////////
     // ff;
     always_ff @(posedge clk_sys, posedge rst_sys)
