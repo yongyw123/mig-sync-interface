@@ -50,7 +50,24 @@ module test_top
         input logic CPU_RESETN,     
       
         // LEDs;
-        output logic [15:0] LED
+        output logic [15:0] LED,
+        
+                
+        // ddr2 sdram memory interface (defined by the imported ucf file);
+        output logic [12:0] ddr2_addr,   // address; 
+        output logic [2:0]  ddr2_ba,    
+        output logic ddr2_cas_n,  // output                                       ddr2_cas_n
+        output logic [0:0] ddr2_ck_n,  // output [0:0]                        ddr2_ck_n
+        output logic [0:0] ddr2_ck_p,  // output [0:0]                        ddr2_ck_p
+        output logic [0:0] ddr2_cke,  // output [0:0]                       ddr2_cke
+        output logic ddr2_ras_n,  // output                                       ddr2_ras_n
+        output logic ddr2_we_n,  // output                                       ddr2_we_n
+        inout tri [15:0] ddr2_dq,  // inout [15:0]                         ddr2_dq
+        inout tri [1:0] ddr2_dqs_n,  // inout [1:0]                        ddr2_dqs_n
+        inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
+        output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
+        output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
+        output logic [0:0] ddr2_odt  // output [0:0]                       ddr2_odt
                         
     );
     /*--------------------------------------
