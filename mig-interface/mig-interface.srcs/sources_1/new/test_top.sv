@@ -236,4 +236,8 @@ module test_top
             default: ;  // nop;
         endcase
     end     
+    
+        
+    // led output;   
+    assign LED =  user_rd_data[15:0];
 endmodule
