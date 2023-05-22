@@ -39,18 +39,7 @@ Note:
 
 */    
 
-module test_top
-    #(parameter
-        // counter/timer;
-        // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
-        TIMER_THRESHOLD = 200_000_000,
-        
-        
-        // traffic generator to issue the addr;
-        // here we just simply use incremental basis;
-        INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
-    )
-    
+module test_top    
     (
         // general;
         // 100 MHz;
@@ -61,8 +50,8 @@ module test_top
         input logic CPU_RESETN,     
       
         // LEDs;
-        output logic [15:0] LED, 
-                
+        output logic [15:0] LED,
+        
         // ddr2 sdram memory interface (defined by the imported ucf file);
         output logic [12:0] ddr2_addr,   // address; 
         output logic [2:0]  ddr2_ba,    
@@ -77,12 +66,8 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt,  // output [0:0]                       ddr2_odt
-        
-        
-        // debugging;
-        output logic debug_clk_sys,
-        input logic debug_MIG_user_init_complete
+        output logic [0:0] ddr2_odt  // output [0:0]                       ddr2_odt
+                               
         
     );
     /*--------------------------------------
@@ -91,6 +76,11 @@ module test_top
     /////////// general;   
     logic rst_sys;
     logic clk_sys;  // 100MHz from the MMCM;
+       
+    /////////// MMCM;
+    logic clkout_200M; // to drive the MIG;
+    logic clkout_100M; // to drive the rest of the system;
+    logic locked;
     
     /////////// ddr2 MIG general signals
     // user signals for the uut;
@@ -110,28 +100,14 @@ module test_top
     logic clk_mem;    // MIG memory clock;
     logic rst_mem_n;    // active low to reset the mig interface;
        
-    /////////// MMCM;
-    logic clk_200M; // to drive the MIG;
-    logic clk_100M; // to drive the rest of the system;
-    logic locked;
-    
-    /*--------------------------------------
-    * debugging; 
-    --------------------------------------*/
-    
-    assign debug_clk_sys = clk_sys;
-    assign MIG_user_init_complete = debug_MIG_user_init_complete;
-    
-    
     /*--------------------------------------
     * signal mapping; 
     --------------------------------------*/
-    assign clk_sys = clk_100M;
+    assign clk_sys = clkout_100M;
     assign rst_sys = ~CPU_RESETN; // active high for system reset;
     
     assign rst_mem_n = (!rst_sys) && (locked);
-    assign clk_mem = clk_200M;  
-    
+    assign clk_mem = clkout_200M;  
     
     /*--------------------------------------
     * application test signals 
@@ -162,11 +138,13 @@ module test_top
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
     //localparam TIMER_THRESHOLD = 200_000_000;
+    localparam TIMER_THRESHOLD = 2;
     logic [27:0] timer_reg, timer_next;
     
     // traffic generator to issue the addr;
     // here we just simply use incremental basis;
     //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
+    localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
     logic [15:0] index_reg, index_next;
     
     /*--------------------------------------
@@ -176,92 +154,79 @@ module test_top
     clk_wiz_0 mmcm_unit
        (
         // Clock out ports
-        .clk_200M(clk_200M),     // output clk_200M
+        .clk_200M(clkout_200M),     // output clk_200M
         .clk_250M(),     // output clk_250M
-        .clk_100M(clk_100M),     // output clk_100M
+        .clk_100M(clkout_100M),     // output clk_100M
         // Status and control signals
         .reset(rst_sys), // input reset
         .locked(locked),       // output locked
        // Clock in ports
         .clk_in1(clk_in_100M)
-        );      // input clk_in1
+    );      // input clk_in1
 
+    user_mem_ctrl uut
+    (
+        //*  from the user system
+        // general, 
+        .clk_sys(clk_sys),    // 100MHz,
+        .rst_sys(rst_sys),    // asynchronous system reset,
+        
+        //interface between the user system and the memory controller,
+        .user_wr_strobe(user_wr_strobe),             // write request,
+        .user_rd_strobe(user_rd_strobe),             // read request,
+        .user_addr(user_addr),           // address,
+        
+        // data,
+        .user_wr_data(user_wr_data),   
+        .user_rd_data(user_rd_data),         
+        
+        // status
+        .MIG_user_init_complete(MIG_user_init_complete),        // MIG done calibarating and initializing the DDR2,
+        .MIG_user_ready(MIG_user_ready),                // this implies init_complete and also other status, see UG586, app_rdy,
+        .MIG_user_transaction_complete(MIG_user_transaction_complete), // read/write transaction complete?
+        
+        //*  MIG interface 
+        // memory system,
+        .clk_mem(clk_mem),        // to drive MIG memory clock,
+        .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
+        
+        // ddr2 sdram memory interface (defined by the imported ucf file),
+        .ddr2_addr(ddr2_addr),   // address, 
+        .ddr2_ba(ddr2_ba),    
+        .ddr2_cas_n(ddr2_cas_n),  // output                                       ddr2_cas_n
+        .ddr2_ck_n(ddr2_ck_n),  // output [0:0]                        ddr2_ck_n
+        .ddr2_ck_p(ddr2_ck_p),  // output [0:0]                        ddr2_ck_p
+        .ddr2_cke(ddr2_cke),  // output [0:0]                       ddr2_cke
+        .ddr2_ras_n(ddr2_ras_n),  // output                                       ddr2_ras_n
+        .ddr2_we_n(ddr2_we_n),  // output                                       ddr2_we_n
+        .ddr2_dq(ddr2_dq),  // inout [15:0]                         ddr2_dq
+        .ddr2_dqs_n(ddr2_dqs_n),  // inout [1:0]                        ddr2_dqs_n
+        .ddr2_dqs_p(ddr2_dqs_p),  // inout [1:0]                        ddr2_dqs_p
+        
+        // not used;
+        .init_calib_complete(),  // output                                       init_calib_complete
+        
+        .ddr2_cs_n(ddr2_cs_n),  // output [0:0]           ddr2_cs_n
+        .ddr2_dm(ddr2_dm),  // output [1:0]                        ddr2_dm
+        .ddr2_odt(ddr2_odt),  // output [0:0]                       ddr2_odt
+       
+        //  debugging interface (not used)            
+        .debug_app_rd_data_valid(),
+        .debug_app_rd_data_end(),
+        .debug_ui_clk(),
+        .debug_ui_clk_sync_rst(),
+        .debug_app_rdy(),
+        .debug_app_wdf_rdy(),
+        .debug_app_en(),
+        .debug_app_wdf_data(),
+        .debug_app_wdf_end(),
+        .debug_app_wdf_wren(),
+        .debug_init_calib_complete(),
+        .debug_transaction_complete_async(),
+        .debug_app_cmd(),
+        .debug_app_rd_data()
+    );
 
-    // uut;
-    /*
-    user_mem_ctrl
-        #(
-        .CLOCK_RATIO(2),    // PHY to controller clock ratio;
-        .DATA_WIDTH(128),  // ddr2 native data width;
-        .TRANSACTION_WIDTH_PER_CYCLE(64),   // per clock; so 128 in two clocks;
-        .DATA_MASK_WIDTH(8),    // masking for write data; see UG586 for the formulae;
-        .USER_ADDR_WIDTH(23) // discussed in the note section above;                
-        )
-        
-        uut
-        (
-            //*  from the user system
-            // general, 
-            .clk_sys(clk_sys),    // 100MHz,
-            .rst_sys(rst_sys),    // asynchronous system reset,
-            
-            //interface between the user system and the memory controller,
-            .user_wr_strobe(user_wr_strobe),             // write request,
-            .user_rd_strobe(user_rd_strobe),             // read request,
-            .user_addr(user_addr),           // address,
-            
-            // data,
-            .user_wr_data(user_wr_data),   
-            .user_rd_data(user_rd_data),         
-            
-            // status
-            .MIG_user_init_complete(MIG_user_init_complete),        // MIG done calibarating and initializing the DDR2,
-            .MIG_user_ready(MIG_user_ready),                // this implies init_complete and also other status, see UG586, app_rdy,
-            .MIG_user_transaction_complete(MIG_user_transaction_complete), // read/write transaction complete?
-            
-            //*  MIG interface 
-            // memory system,
-            .clk_mem(clk_mem),        // to drive MIG memory clock,
-            .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
-            
-            // ddr2 sdram memory interface (defined by the imported ucf file),
-            .ddr2_addr(ddr2_addr),   // address, 
-            .ddr2_ba(ddr2_ba),    
-            .ddr2_cas_n(ddr2_cas_n),  // output                                       ddr2_cas_n
-            .ddr2_ck_n(ddr2_ck_n),  // output [0:0]                        ddr2_ck_n
-            .ddr2_ck_p(ddr2_ck_p),  // output [0:0]                        ddr2_ck_p
-            .ddr2_cke(ddr2_cke),  // output [0:0]                       ddr2_cke
-            .ddr2_ras_n(ddr2_ras_n),  // output                                       ddr2_ras_n
-            .ddr2_we_n(ddr2_we_n),  // output                                       ddr2_we_n
-            .ddr2_dq(ddr2_dq),  // inout [15:0]                         ddr2_dq
-            .ddr2_dqs_n(ddr2_dqs_n),  // inout [1:0]                        ddr2_dqs_n
-            .ddr2_dqs_p(ddr2_dqs_p),  // inout [1:0]                        ddr2_dqs_p
-            
-            // not used;
-            .init_calib_complete(),  // output                                       init_calib_complete
-            
-            .ddr2_cs_n(ddr2_cs_n),  // output [0:0]           ddr2_cs_n
-            .ddr2_dm(ddr2_dm),  // output [1:0]                        ddr2_dm
-            .ddr2_odt(ddr2_odt),  // output [0:0]                       ddr2_odt
-           
-            //  debugging interface (not used)            
-            .debug_app_rd_data_valid(),
-            .debug_app_rd_data_end(),
-            .debug_ui_clk(),
-            .debug_ui_clk_sync_rst(),
-            .debug_app_rdy(),
-            .debug_app_wdf_rdy(),
-            .debug_app_en(),
-            .debug_app_wdf_data(),
-            .debug_app_wdf_end(),
-            .debug_app_wdf_wren(),
-            .debug_init_calib_complete(),
-            .debug_transaction_complete_async(),
-            .debug_app_cmd(),
-            .debug_app_rd_data()
-        );
-        
-    */
     ////////////////////////////////////////////////////////////////////////////////////
     // ff;
     always_ff @(posedge clk_sys, posedge rst_sys) begin
@@ -290,12 +255,11 @@ module test_top
         index_next = index_reg;
         state_next = state_reg;
         user_addr_next = user_addr_reg;
-        
+                
         user_wr_strobe = 1'b0;
         user_rd_strobe = 1'b0;
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
-               
                     
         /* 
         state:
@@ -313,28 +277,26 @@ module test_top
         case(state_reg)
             ST_CHECK_INIT: begin
                 if(MIG_user_init_complete) begin
-                    //state_next = ST_WRITE_SETUP;
-                    //state_next = ST_READ_SETUP;
-                    state_next = ST_WRITE;
+                    state_next = ST_WRITE_SETUP;
                 end  
             end      
             
             ST_WRITE_SETUP: begin
-                //user_addr_next = index_reg;
-                //wr_data_next = index_reg;
+                user_addr_next = index_reg;
+                wr_data_next = index_reg;
                 state_next = ST_WRITE;            
             end
             
             ST_WRITE: begin
                 // check if the memory is ready;
-                //if(MIG_user_ready) begin            
+                if(MIG_user_ready) begin            
                     user_addr = user_addr_reg;
                     user_wr_data = wr_data_reg;
                     // submit the write request;
                     user_wr_strobe = 1'b1;
                     
                     state_next = ST_WRITE_WAIT;
-                //end
+                end
             end
         
             ST_WRITE_WAIT: begin
@@ -365,16 +327,22 @@ module test_top
             end 
             
             ST_LED_WAIT: begin
+                state_next = ST_GEN;
+                /*
                 // timer expired? generate next test index;
                 if(timer_reg == (TIMER_THRESHOLD-1)) begin
-                    state_next = ST_GEN;
+                    state_next = ST_GEN;                     
                  end
                 else begin
                     timer_next = timer_reg + 1;
                 end
+                */
             end
         
             ST_GEN: begin
+                index_next = index_reg + 1;
+                state_next = ST_WRITE_SETUP;
+                /* 
                 // generate the test index; and wrap around after 2^{16};
                 if(index_reg == (INDEX_THRESHOLD-1)) begin
                     // reset;
@@ -384,7 +352,8 @@ module test_top
                 end
                 else begin
                     index_next = index_reg + 1;
-                end                            
+                end
+                */                            
             end
             
             default: ;  // nop;
@@ -392,5 +361,5 @@ module test_top
     end
     
     // led output;   
-    assign LED =  user_rd_data[15:0];
+    //assign LED =  user_rd_data[15:0];
 endmodule

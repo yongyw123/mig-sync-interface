@@ -25,11 +25,7 @@ module test_top_tb_top();
     localparam T = 10;  // system clock period: 10ns;
     logic clk_in_100M;         // common system clock;
     logic CPU_RESETN;        // async;
-    
-    // debugging
-    logic debug_clk_sys;
-    logic debug_MIG_user_init_complete;
-    
+        
     /* uut signals */
     // LEDs;
     logic [15:0] LED;
@@ -66,7 +62,7 @@ module test_top_tb_top();
     https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US
     
     */
-    /*
+    
     ddr2_model ddr2_model_unit
     (
         .ck(ddr2_ck_p),
@@ -84,15 +80,10 @@ module test_top_tb_top();
         .dqs_n(ddr2_dqs_n),
         .rdqs_n(),
         .odt(ddr2_odt)
-    );*/
+    );
     
     // uut;
-    test_top 
-    #(
-    .TIMER_THRESHOLD(3),
-    .INDEX_THRESHOLD(10)
-    )
-    uut (.*);
+    test_top uut (.*);
     
     // test stimulus;
     test_top_tb tb(.*);
@@ -117,7 +108,7 @@ module test_top_tb_top();
     
     /* monitoring */
     initial begin
-        $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d, uut.MIG_user_init_complete: %0b",
+           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d, uut.MIG_user_init_complete: %0b",
             $time,
             uut.state_reg.name,
             uut.state_next.name,

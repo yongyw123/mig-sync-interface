@@ -23,17 +23,14 @@
 module test_top_tb
     (
         input logic clk_in_100M,
-        input logic [15:0] LED,
-        output logic debug_MIG_user_init_complete        
+        input logic [15:0] LED               
     );
     
     //localparam TERMINATE_THRESHOLD = 5;
     initial begin
         #(1000);
-        @(posedge clk_in_100M);
-        debug_MIG_user_init_complete <= 1'b1;
-        
-        //wait(LED == 5);
+        @(posedge clk_in_100M);        
+        wait(LED == 5);
         @(posedge clk_in_100M);
         @(posedge clk_in_100M);
         @(posedge clk_in_100M);
