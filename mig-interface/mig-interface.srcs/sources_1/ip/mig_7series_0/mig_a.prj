@@ -23,9 +23,9 @@
 
   <Version>4.2</Version>
 
-  <SystemClock>Single-Ended</SystemClock>
+  <SystemClock>No Buffer</SystemClock>
 
-  <ReferenceClock>Single-Ended</ReferenceClock>
+  <ReferenceClock>Use System Clock</ReferenceClock>
 
   <SysResetPolarity>ACTIVE LOW</SysResetPolarity>
 
@@ -110,12 +110,6 @@
       <Pin IN_TERM="" IOSTANDARD="SSTL18_II" PADName="N4" SLEW="" VCCAUX_IO="" name="ddr2_ras_n"/>
       <Pin IN_TERM="" IOSTANDARD="SSTL18_II" PADName="N2" SLEW="" VCCAUX_IO="" name="ddr2_we_n"/>
     </PinSelection>
-    <Reference_Clock>
-      <Pin Bank="16" PADName="A10(SRCC_P)" name="clk_ref_i"/>
-    </Reference_Clock>
-    <System_Clock>
-      <Pin Bank="35" PADName="E3(MRCC_P)" name="sys_clk_i"/>
-    </System_Clock>
     <System_Control>
       <Pin Bank="Select Bank" PADName="No connect" name="sys_rst"/>
       <Pin Bank="Select Bank" PADName="No connect" name="init_calib_complete"/>
