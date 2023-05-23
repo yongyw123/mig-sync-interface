@@ -60,7 +60,10 @@ module FF_synchronizer_fast_to_slow
     1. This is reported in the route design;
     2. Encountered Error: "TIMING-10#1 Warning
         Missing property on synchronizer  
-        One or more logic synchronizer has been detected between 2 clock domains but the synchronizer does not have the property ASYNC_REG defined on one or both registers. It is recommended to run report_cdc for a complete and detailed CDC coverage
+        One or more logic synchronizer has been detected between 2 clock domains 
+        but the synchronizer does not have the property ASYNC_REG defined on one 
+        or both registers.
+        It is recommended to run report_cdc for a complete and detailed CDC coverage
     "
     3. See Xilinx UG901 (https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/ASYNC_REG)
     The ASYNC_REG is an attribute that affects many processes in the Vivado tools flow. 
