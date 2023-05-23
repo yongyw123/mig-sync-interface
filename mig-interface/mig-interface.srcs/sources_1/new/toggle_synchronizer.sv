@@ -55,8 +55,23 @@ module toggle_synchronizer
     // stage 01;
     logic src_reg, src_next;
 
+    /*
+    NOTE on ASYNC_REG;
+    1. This is reported in the route design;
+    2. Encountered Error: "TIMING-10#1 Warning
+        Missing property on synchronizer  
+        One or more logic synchronizer has been detected between 2 clock domains but the synchronizer does not have the property ASYNC_REG defined on one or both registers. It is recommended to run report_cdc for a complete and detailed CDC coverage
+    "
+    3. See Xilinx UG901 (https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/ASYNC_REG)
+    The ASYNC_REG is an attribute that affects many processes in the Vivado tools flow. 
+    The purpose of this attribute is to inform the tool that a register is capable of receiving 
+    asynchronous data in the D input pin relative to the source clock, 
+    or that the register is a synchronizing register within a synchronization chain.
+    */
+
+    
     // stage 02;
-    logic stage02_first_reg, stage02_first_next;
+    (* ASYNC_REG = "TRUE" *) logic stage02_first_reg, stage02_first_next;
     logic stage02_second_reg, stage02_second_next;
     
     // stage 03;
