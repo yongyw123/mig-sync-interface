@@ -375,7 +375,7 @@ module user_mem_ctrl
     // System Clock Ports
     .sys_clk_i                       (clk_mem),  // input                                        sys_clk_i
 
-    .sys_rst                        (rst_mem_n) // input  sys_rst
+    .sys_rst                        (rst_mem_n) // input  sys_rst (ACTIVE LOW);
 
     );
    
@@ -404,8 +404,6 @@ module user_mem_ctrl
     assign debug_transaction_complete_async = transaction_complete_async;
     assign debug_app_cmd = app_cmd;
     assign debug_app_rd_data = app_rd_data;
-    
-    
     
     /* -----------------------------------------------
     * FSM

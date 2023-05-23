@@ -43,7 +43,8 @@ module test_top
     #(parameter
         // counter/timer;
         // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
-        TIMER_THRESHOLD = 200_000_000,
+        //TIMER_THRESHOLD = 200_000_000,
+        TIMER_THRESHOLD = 100_000_000,  // one second;
         
         // traffic generator to issue the addr;
         // here we just simply use incremental basis;
@@ -179,7 +180,10 @@ module test_top
         //  from the user system
         // general, 
         .clk_sys(clk_sys),    // 100MHz,
-        .rst_sys(rst_sys),    // asynchronous system reset,
+        //.rst_sys(rst_sys),    // asynchronous system reset,
+        
+        // use a common reset (whichever is longer);
+        .rst_sys(~rst_mem_n),
         
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
