@@ -147,7 +147,7 @@ module user_mem_ctrl
         output logic [0:0] ddr2_cke,  // output [0:0]                       ddr2_cke
         output logic ddr2_ras_n,  // output                                       ddr2_ras_n
         output logic ddr2_we_n,  // output                                       ddr2_we_n
-        inout tri [DATA_WIDTH-1:0] ddr2_dq,  // inout [15:0]                         ddr2_dq
+        inout tri [15:0] ddr2_dq,  // inout [15:0]                         ddr2_dq
         inout tri [1:0] ddr2_dqs_n,  // inout [1:0]                        ddr2_dqs_n
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p
         output logic init_calib_complete,  // output                                       init_calib_complete
