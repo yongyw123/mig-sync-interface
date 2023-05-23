@@ -167,13 +167,12 @@ module test_top
     logic [16:0] index_reg, index_next;
     
     /* -------------------------------------------------------------------
-     // Power-on-reset generator circuit.
-     // Asserts resetn for 1023 cycles, then deasserts     
-     -------------------------------------------------------------------*/
-     logic [16:0] por_counter = 65535;
+    // reset stretcher;          
+    -------------------------------------------------------------------*/
+     logic [15:0] por_counter = 16'hFFFF;
      always @ (posedge clk_sys) begin
-       if(por_counter) begin
-         por_counter <= por_counter - 1 ;
+        if(por_counter) begin
+            por_counter <= por_counter - 1 ;
        end
      end           
      
@@ -182,8 +181,8 @@ module test_top
     --------------------------------------*/
     assign clk_sys = clkout_100M;
     //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
-    //assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
-    assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
+    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    //assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
     
     assign rst_mmcm = (!CPU_RESETN);
            

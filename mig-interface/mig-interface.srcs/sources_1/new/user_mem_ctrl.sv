@@ -482,7 +482,7 @@ module user_mem_ctrl
             end
             
             ST_WRITE_FIRST: begin
-                // wait until the write fifo has space;                
+                // wait until the write fifo has space;                                
                 if(app_wdf_rdy) begin
                     
                     // prepare the write data with masking;
@@ -499,16 +499,14 @@ module user_mem_ctrl
                     
                     // push it to the MIG write fifo;
                     app_wdf_wren = 1'b1;    
-                                        
-                   // next chunk to complete a total of 128-bit write transaction;
+                    
+                    // next chunk to complete a total of 128-bit write transaction;
                    state_next = ST_WRITE_SECOND;
                 end
             end
             
             ST_WRITE_SECOND: begin
-                // need to check app_rdy here so that it acknowledges
-                // the write request from ST_WRITE_UPPER;
-                if(app_rdy && app_wdf_rdy) begin
+                if(app_wdf_rdy) begin
                     // all data shall be written; so enable the mask;
                     app_wdf_mask = 8'h00;
                     // extract the first 64-bit chunk from the user;
@@ -522,7 +520,8 @@ module user_mem_ctrl
                     app_wdf_wren = 1'b1;         
                     
                     // submit the request;                                                         
-                    state_next = ST_WRITE_SUBMIT; 
+                    state_next = ST_WRITE_SUBMIT;
+                     
                 end                
             end
             ST_WRITE_SUBMIT: begin
