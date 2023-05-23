@@ -302,12 +302,10 @@ module user_mem_ctrl
     FF_synchronizer_slow_to_fast
     FF_synchronizer_wr_unit
     (
-        // from slow domain        
-        .s_clk(clk_sys),
-        .s_rst_n(~rst_sys),
+        // src: from slow domain        
         .in_async(user_wr_strobe),
         
-        // from fast domain;        
+        // dest: from fast domain;        
         .f_clk(ui_clk),
         .f_rst_n(~ui_clk_sync_rst),
         .out_sync(user_wr_strobe_sync)
@@ -317,12 +315,10 @@ module user_mem_ctrl
     FF_synchronizer_slow_to_fast
     FF_synchronizer_rd_unit
     (
-        // from slow domain        
-        .s_clk(clk_sys),
-        .s_rst_n(~rst_sys),
+        // src: from slow domain        
         .in_async(user_rd_strobe),
         
-        // from fast domain;        
+        // dest: from fast domain;        
         .f_clk(ui_clk),
         .f_rst_n(~ui_clk_sync_rst),
         .out_sync(user_rd_strobe_sync)
