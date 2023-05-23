@@ -1,5 +1,10 @@
 # mig-sync-interface
 
+?? to do ??
+to change to use PLL instead of MMCM for the MIG clock;
+see UG586; Section: System Clock, PLL Location, and Constraints??
+
+
 To implement a simple synchronous wrapper around Xilinx Memory-interface-generated (MIG) interface with the DDR2 External Memory of this FPGA development board: Nexys A7-50T. This synchronous interface assumes sequential transfer: only a single write/read operation is allowed at a time for simplicity.
 
 | **Environment** | **Description** |
