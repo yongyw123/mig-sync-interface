@@ -45,7 +45,14 @@ module test_top_tb_top();
     logic [0:0] ddr2_cs_n; //   [0:0]           ddr2_cs_n
     tri [1:0] ddr2_dm; //   [1:0]                        ddr2_dm
     logic [0:0] ddr2_odt;  //   [0:0]                       ddr2_odt
-        
+    
+    /*-----------------------------------
+    * debugging interface
+    * to remove for synthesis;
+    *-----------------------------------*/
+    logic debug_wr_strobe;
+    logic debug_rd_strobe;
+    
     /*------------------------------------
     * instantiation 
     ------------------------------------*/

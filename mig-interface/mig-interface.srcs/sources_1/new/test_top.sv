@@ -75,7 +75,14 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt  // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt,  // output [0:0]                       ddr2_odt
+        
+        /*-----------------------------------
+        * debugging interface
+        * to remove for synthesis;
+        *-----------------------------------*/
+        output logic debug_wr_strobe,
+        output logic debug_rd_strobe
                         
     );
     /*--------------------------------------
@@ -133,6 +140,10 @@ module test_top
     
     // register to filter addr glitch when issuing;
     logic [22:0] user_addr_reg, user_addr_next;
+    
+    // register to filter the write and read request;
+    logic user_wr_strobe_reg, user_wr_strobe_next;
+    logic user_rd_strobe_reg, user_rd_strobe_next;
     
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
@@ -235,6 +246,13 @@ module test_top
     assign rst_mem_n = (!rst_sys) && (locked);
     assign clk_mem = clkout_200M;  
     
+    /*-----------------------------------
+    * debugging interface
+    * to remove for synthesis;
+    *-----------------------------------*/
+    assign debug_wr_strobe = user_wr_strobe;    
+    assign debug_rd_strobe = user_rd_strobe; 
+
     ////////////////////////////////////////////////////////////////////////////////////
      // ff;
     always_ff @(posedge clk_sys, posedge rst_sys)
@@ -244,7 +262,9 @@ module test_top
             timer_reg <= 0;
             index_reg <= 0;
             state_reg <= ST_CHECK_INIT;
-            user_addr_reg <= 0;         
+            user_addr_reg <= 0;     
+            user_wr_strobe_reg <= 1'b0;
+            user_rd_strobe_reg <= 1'b0;    
         end
         else begin
             wr_data_reg <= wr_data_next;
@@ -252,6 +272,8 @@ module test_top
             index_reg <= index_next;
             state_reg <= state_next;
             user_addr_reg <= user_addr_next;
+            user_wr_strobe_reg <= user_wr_strobe_next;
+            user_rd_strobe_reg <= user_rd_strobe_next;
         end
 
     // fsm;
@@ -263,8 +285,15 @@ module test_top
         state_next = state_reg;
         user_addr_next = user_addr_reg;
                 
-        user_wr_strobe = 1'b0;
-        user_rd_strobe = 1'b0;
+        //user_wr_strobe = 1'b0;
+        //user_rd_strobe = 1'b0;
+        
+        user_wr_strobe = user_wr_strobe_reg;
+        user_rd_strobe = user_rd_strobe_reg;
+        
+        user_wr_strobe_next = 1'b0;
+        user_rd_strobe_next = 1'b0;
+        
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
                                             
@@ -301,13 +330,18 @@ module test_top
                 // stable for the upcoming write request;
                 wr_data_next = index_reg;
                 user_addr_next = index_reg;
+                
+                user_wr_strobe_next = 1'b1;
+                
                 state_next = ST_WRITE;            
             end
             
             ST_WRITE: begin
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
-                    user_wr_strobe = 1'b1;
+                
+                    //user_wr_strobe = 1'b1;
+                
                     state_next = ST_WRITE_WAIT;
                 end
             end
@@ -322,13 +356,16 @@ module test_top
                  
                 // note that the the address line is already
                 // stable in the default section above; for the upcoming read request;
-                state_next = ST_READ;            
+                state_next = ST_READ;
+                user_rd_strobe_next = 1'b1;
             end
             
             ST_READ: begin
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
-                    user_rd_strobe = 1'b1;
+                    
+                    //user_rd_strobe = 1'b1;
+                    
                     state_next = ST_READ_WAIT;
                 end
             end
