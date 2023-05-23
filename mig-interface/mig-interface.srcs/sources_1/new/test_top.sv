@@ -39,7 +39,8 @@ Note:
 
 */    
 
-module test_top   
+module test_top
+    /*
     #(parameter
         // counter/timer;
         // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
@@ -50,6 +51,7 @@ module test_top
         // here we just simply use incremental basis;
         INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
     ) 
+    */
     (
         // general;
         // 100 MHz;
@@ -76,14 +78,14 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt,  // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
         *-----------------------------------*/
-        output logic debug_wr_strobe,
-        output logic debug_rd_strobe
+        //output logic debug_wr_strobe,
+        //output logic debug_rd_strobe
                         
     );
     /*--------------------------------------
@@ -97,6 +99,12 @@ module test_top
     logic clkout_200M; // to drive the MIG;
     logic clkout_100M; // to drive the rest of the system;
     logic locked;
+    
+    //// register to filter out reset signals;
+    logic rst_sys_raw;    // to invert the input reset;
+    logic rst_sys_reg;
+    logic rst_sys_sync;          
+    logic rst_mmcm;
     
     /////////// ddr2 MIG general signals
     // user signals for the uut;
@@ -149,14 +157,54 @@ module test_top
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
     //localparam TIMER_THRESHOLD = 200_000_000;
+    localparam TIMER_THRESHOLD = 100_000_000; // one second;
     //localparam TIMER_THRESHOLD = 10;
     logic [27:0] timer_reg, timer_next;
     
     // traffic generator to issue the addr;
     // here we just simply use incremental basis;
-    //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
+    localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
     //localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
-    logic [15:0] index_reg, index_next;
+    logic [16:0] index_reg, index_next;
+    
+    /*--------------------------------------
+    * signal mapping; 
+    --------------------------------------*/
+    assign clk_sys = clkout_100M;
+    //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
+    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    assign rst_mmcm = (!CPU_RESETN);
+           
+    //assign rst_mem_n = (!rst_sys) && (locked);
+    assign rst_mem_n = (!rst_sys);
+    assign clk_mem = clkout_200M;  
+    
+    /*-----------------------------------
+    * debugging interface
+    * to remove for synthesis;
+    *-----------------------------------*/
+    //assign debug_wr_strobe = user_wr_strobe;    
+    //assign debug_rd_strobe = user_rd_strobe; 
+
+    /* -------------------------------------------------------------------
+    * Synchronize the reset signals;
+    * currently; it is asynchronous
+    * implementation error encountered: LUT drives async reset alert
+    * implementation: use two registers (synchronizer) instead of one to
+    * filter out any glitch;
+    -------------------------------------------------------------------*/
+
+    // use the input clock, rather than from the MMCM;
+    // first stage;
+    always_ff @(posedge clk_sys) begin
+        // system reset;
+        rst_sys_reg   <= rst_sys_raw;
+    end
+    // second state register;
+    always_ff @(posedge clk_sys) begin
+        // system reset;
+        rst_sys <= rst_sys_reg;  
+    end
     
     /*--------------------------------------
     * instantiation 
@@ -169,7 +217,7 @@ module test_top
         .clk_250M(),     // output clk_250M
         .clk_100M(clkout_100M),     // output clk_100M
         // Status and control signals
-        .reset(rst_sys), // input reset
+        .reset(rst_mmcm), // input reset
         .locked(locked),       // output locked
        // Clock in ports
         .clk_in1(clk_in_100M)
@@ -241,22 +289,7 @@ module test_top
         .debug_app_rd_data()
     );
     
-    /*--------------------------------------
-    * signal mapping; 
-    --------------------------------------*/
-    assign clk_sys = clkout_100M;
-    assign rst_sys = ~CPU_RESETN; // active high for system reset;
-        
-    assign rst_mem_n = (!rst_sys) && (locked);
-    assign clk_mem = clkout_200M;  
     
-    /*-----------------------------------
-    * debugging interface
-    * to remove for synthesis;
-    *-----------------------------------*/
-    assign debug_wr_strobe = user_wr_strobe;    
-    assign debug_rd_strobe = user_rd_strobe; 
-
     ////////////////////////////////////////////////////////////////////////////////////
      // ff;
     always_ff @(posedge clk_sys, posedge rst_sys)
