@@ -135,7 +135,7 @@ module user_mem_ctrl
         *  MIG interface 
         ------------------------------------------------------*/
         // memory system;
-        input logic clk_mem,        // to drive MIG memory clock;
+        input logic clk_mem,        // 200MHz to drive MIG memory clock;
         input logic rst_mem_n,      // active low to reset the mig interface;
         
         // ddr2 sdram memory interface (defined by the imported ucf file);

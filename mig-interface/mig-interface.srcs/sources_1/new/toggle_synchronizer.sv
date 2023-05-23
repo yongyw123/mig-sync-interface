@@ -49,12 +49,6 @@ module toggle_synchronizer
         output logic out_sync
     );
     
-    /* -------------------------
-    * signal declarations;
-    ---------------------------*/
-    // stage 01;
-    logic src_reg, src_next;
-
     /*
     NOTE on ASYNC_REG;
     1. This is reported in the route design;
@@ -71,13 +65,20 @@ module toggle_synchronizer
     or that the register is a synchronizing register within a synchronization chain.
     */
 
+
+    /* -------------------------
+    * signal declarations;
+    ---------------------------*/
+    // stage 01;
+    (* ASYNC_REG = "TRUE" *) logic src_reg, src_next;
+
     
     ///// stage 02;        
     (* ASYNC_REG = "TRUE" *) logic stage02_first_reg, stage02_first_next;         
     (* ASYNC_REG = "TRUE" *) logic stage02_second_reg, stage02_second_next;
     
     // stage 03;
-    logic stage03_reg, stage03_next;
+    (* ASYNC_REG = "TRUE" *) logic stage03_reg, stage03_next;
 
     /*----------------------------------
     * Stage 01:

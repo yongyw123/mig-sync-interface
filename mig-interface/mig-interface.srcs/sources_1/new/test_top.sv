@@ -100,7 +100,8 @@ module test_top
     
     //// register to filter out reset signals;
     logic rst_sys_raw;    // to invert the input reset;
-    logic rst_sys_reg;
+    logic rst_sys_01_reg;
+    logic rst_sys_02_reg;
     logic rst_sys_sync;          
     logic rst_mmcm;
     
@@ -169,9 +170,9 @@ module test_top
      // Power-on-reset generator circuit.
      // Asserts resetn for 1023 cycles, then deasserts     
      -------------------------------------------------------------------*/
-     logic [9:0] por_counter = 1023;
+     logic [16:0] por_counter = 65535;
      always @ (posedge clk_sys) begin
-       if (por_counter) begin
+       if(por_counter) begin
          por_counter <= por_counter - 1 ;
        end
      end           
@@ -205,17 +206,12 @@ module test_top
     * implementation: use two registers (synchronizer) instead of one to
     * filter out any glitch;
     -------------------------------------------------------------------*/
-
-    // use the input clock, rather than from the MMCM;
-    // first stage;
-    always_ff @(posedge clk_sys) begin
-        // system reset;
-        rst_sys_reg   <= rst_sys_raw;
-    end
-    // second state register;
-    always_ff @(posedge clk_sys) begin
-        // system reset;
-        rst_sys <= rst_sys_reg;  
+    
+    //always_ff @(posedge clk_sys) begin
+    always_ff @(posedge clk_mem) begin
+        rst_sys_01_reg  <= rst_sys_raw;
+        rst_sys_02_reg  <= rst_sys_01_reg; 
+        rst_sys         <= rst_sys_02_reg;  // triple-synchronizer; oh well...
     end
     
     /*--------------------------------------
@@ -245,6 +241,12 @@ module test_top
         // use a common reset (whichever is longer);
         .rst_sys(~rst_mem_n),
         
+        //  MIG interface 
+        // memory system,
+        .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
+        .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
+        
+        
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
         .user_rd_strobe(user_rd_strobe),             // read request,
@@ -259,10 +261,6 @@ module test_top
         .MIG_user_ready(MIG_user_ready),                // this implies init_complete and also other status, see UG586, app_rdy,
         .MIG_user_transaction_complete(MIG_user_transaction_complete), // read/write transaction complete?
         
-        //  MIG interface 
-        // memory system,
-        .clk_mem(clk_mem),        // to drive MIG memory clock,
-        .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
         
         // ddr2 sdram memory interface (defined by the imported ucf file),
         .ddr2_addr(ddr2_addr),   // address, 
