@@ -39,8 +39,7 @@ Note:
 
 */    
 
-module test_top
-    /*
+module test_top    
     #(parameter
         // counter/timer;
         // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
@@ -50,8 +49,7 @@ module test_top
         // traffic generator to issue the addr;
         // here we just simply use incremental basis;
         INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
-    ) 
-    */
+    )     
     (
         // general;
         // 100 MHz;
@@ -157,22 +155,35 @@ module test_top
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
     //localparam TIMER_THRESHOLD = 200_000_000;
-    localparam TIMER_THRESHOLD = 100_000_000; // one second;
+    //localparam TIMER_THRESHOLD = 100_000_000; // one second;
     //localparam TIMER_THRESHOLD = 10;
     logic [27:0] timer_reg, timer_next;
     
     // traffic generator to issue the addr;
     // here we just simply use incremental basis;
-    localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
+    //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
     //localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
     logic [16:0] index_reg, index_next;
     
+    /* -------------------------------------------------------------------
+     // Power-on-reset generator circuit.
+     // Asserts resetn for 1023 cycles, then deasserts     
+     -------------------------------------------------------------------*/
+     logic [9:0] por_counter = 1023;
+     always @ (posedge clk_sys) begin
+       if (por_counter) begin
+         por_counter <= por_counter - 1 ;
+       end
+     end           
+     
     /*--------------------------------------
     * signal mapping; 
     --------------------------------------*/
     assign clk_sys = clkout_100M;
     //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
-    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    //assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
+    
     assign rst_mmcm = (!CPU_RESETN);
            
     //assign rst_mem_n = (!rst_sys) && (locked);
@@ -185,7 +196,8 @@ module test_top
     *-----------------------------------*/
     //assign debug_wr_strobe = user_wr_strobe;    
     //assign debug_rd_strobe = user_rd_strobe; 
-
+    
+      
     /* -------------------------------------------------------------------
     * Synchronize the reset signals;
     * currently; it is asynchronous
