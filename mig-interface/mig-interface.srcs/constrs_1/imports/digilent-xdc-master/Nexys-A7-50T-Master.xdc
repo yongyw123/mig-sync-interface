@@ -5,7 +5,9 @@
 
 ## Clock signal
 set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { clk_in_100M }]; #IO_L12P_T1_MRCC_35 Sch=clk100mhz
-#create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports {clk_in_100M}];
+
+set_false_path -from [get_clocks -of_objects [get_pins uut/mig_unit/u_mig_7series_0_mig/u_ddr2_infrastructure/gen_mmcm.mmcm_i/CLKFBOUT]] -to [get_clocks -of_objects [get_pins mmcm_unit/inst/mmcm_adv_inst/CLKOUT2]]
+set_false_path -from [get_clocks -of_objects [get_pins mmcm_unit/inst/mmcm_adv_inst/CLKOUT2]] -to [get_clocks -of_objects [get_pins uut/mig_unit/u_mig_7series_0_mig/u_ddr2_infrastructure/gen_mmcm.mmcm_i/CLKFBOUT]]
 
 
 ##Switches
