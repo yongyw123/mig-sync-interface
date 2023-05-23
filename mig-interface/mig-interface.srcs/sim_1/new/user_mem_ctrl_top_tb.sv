@@ -91,6 +91,8 @@ module user_mem_ctrl_top_tb();
     logic debug_transaction_complete_async;
     logic [2:0] debug_app_cmd;
     logic [63:0] debug_app_rd_data;
+    logic debug_user_wr_strobe_sync;
+    logic debug_user_rd_strobe_sync;
     
     /*------------------------------------
     * instantiation 

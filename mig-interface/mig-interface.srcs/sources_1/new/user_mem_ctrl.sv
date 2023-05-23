@@ -181,7 +181,10 @@ module user_mem_ctrl
         output logic debug_init_calib_complete,
         output logic debug_transaction_complete_async,
         output logic [2:0] debug_app_cmd,
-        output logic [63:0] debug_app_rd_data
+        output logic [63:0] debug_app_rd_data,
+        
+        output logic debug_user_wr_strobe_sync,
+        output logic debug_user_rd_strobe_sync
     );
     
     /* -----------------------------------------------
@@ -404,6 +407,9 @@ module user_mem_ctrl
     assign debug_transaction_complete_async = transaction_complete_async;
     assign debug_app_cmd = app_cmd;
     assign debug_app_rd_data = app_rd_data;
+    
+    assign debug_user_wr_strobe_sync = user_wr_strobe_sync;    
+    assign debug_user_rd_strobe_sync = user_rd_strobe_sync;
     
     /* -----------------------------------------------
     * FSM

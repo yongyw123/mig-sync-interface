@@ -298,7 +298,9 @@ module test_top
         .debug_init_calib_complete(),
         .debug_transaction_complete_async(),
         .debug_app_cmd(),
-        .debug_app_rd_data()
+        .debug_app_rd_data(),        
+        .debug_user_wr_strobe_sync(),
+        .debug_user_rd_strobe_sync()
     );
     
     
