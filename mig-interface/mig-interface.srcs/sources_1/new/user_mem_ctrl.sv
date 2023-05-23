@@ -215,6 +215,11 @@ module user_mem_ctrl
     logic ui_clk;  // output                                       ui_clk
     logic ui_clk_sync_rst;  // output                                       ui_clk_sync_rst
     logic [DATA_MASK_WIDTH-1:0] app_wdf_mask;  // input [7:0]  app_wdf_mask
+    
+    logic app_sr_active; // output                                       app_sr_active
+    logic app_ref_ack; // output                                       app_ref_ack
+    logic app_zq_ack;  // output                                       app_zq_ack
+  
 
     // synchronization signals for CDC;
     logic user_wr_strobe_sync;          // input; user to request write operation;
@@ -364,9 +369,9 @@ module user_mem_ctrl
 	.app_sr_req                     (1'b0),  // input                                        app_sr_req
     .app_ref_req                    (1'b0),  // input                                        app_ref_req
     .app_zq_req                     (1'b0),  // input                                        app_zq_req
-    .app_sr_active                  (),  // output                                       app_sr_active
-    .app_ref_ack                    (),  // output                                       app_ref_ack
-    .app_zq_ack                     (),  // output                                       app_zq_ack
+    .app_sr_active                  (app_sr_active),  // output                                       app_sr_active
+    .app_ref_ack                    (app_ref_ack),  // output                                       app_ref_ack
+    .app_zq_ack                     (app_zq_ack),  // output                                       app_zq_ack
   
     // application interface drivers;
     .ui_clk                         (ui_clk),  // output                                       ui_clk
