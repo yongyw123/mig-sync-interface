@@ -167,7 +167,7 @@ module test_top
     logic [16:0] index_reg, index_next;
     
     /* -------------------------------------------------------------------
-    // reset stretcher;          
+    // power on reset generator;          
     -------------------------------------------------------------------*/
      logic [15:0] por_counter = 16'hFFFF;
      always @ (posedge clk_sys) begin
@@ -181,8 +181,8 @@ module test_top
     --------------------------------------*/
     assign clk_sys = clkout_100M;
     //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
-    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
-    //assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
+    //assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
     
     assign rst_mmcm = (!CPU_RESETN);
            
@@ -448,11 +448,16 @@ module test_top
                 end                                            
             end
             
-            default: ;  // nop;
+            // should not reach this state;
+            default: begin
+                state_next = ST_CHECK_INIT;
+            end  // nop;
         endcase
     end     
     
         
     // led output;   
-    assign LED =  user_rd_data[15:0];
+    // LED[15]; MSB stores the MIG init calibration status;    
+    // LED[14] stores the MMCM locked status;
+    assign LED =  {MIG_user_init_complete, locked, user_rd_data[13:0]};
 endmodule

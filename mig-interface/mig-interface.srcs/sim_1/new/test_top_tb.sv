@@ -31,14 +31,14 @@ module test_top_tb
         
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
-        wait(LED == 1);
+        wait(LED[13:0] == 1);
         
         // first round is done;
-        wait(LED == 0);
-        wait(LED == 1);
+        wait(LED[13:0] == 0);
+        wait(LED[13:0] == 1);
         
         // second round is done;
-        wait(LED == 0);
+        wait(LED[13:0] == 0);
         
         @(posedge clk_in_100M);
         $stop; 
