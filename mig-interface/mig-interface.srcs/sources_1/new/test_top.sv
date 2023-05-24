@@ -81,12 +81,14 @@ module test_top
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
-        *-----------------------------------*/
-        //output logic debug_wr_strobe,
-        //output logic debug_rd_strobe
-        //output logic debug_rst_sys,
-        //output logic debug_clk_sys,
-        //output logic debug_rst_sys_stretch
+        *-----------------------------------*/  
+        /*      
+        output logic debug_wr_strobe,
+        output logic debug_rd_strobe,
+        output logic debug_rst_sys,
+        output logic debug_clk_sys,
+        output logic debug_rst_sys_stretch
+        */
                         
     );
     /*--------------------------------------
@@ -106,7 +108,8 @@ module test_top
     localparam RST_SYS_CYCLE_NUM = 1024;
     logic [11:0] cnt_rst_reg, cnt_rst_next;
     logic rst_sys_stretch;
-       
+    logic rst_sys_stretch_reg; // to filter for glitch;
+    
     /////////// MMCM;
     logic clkout_200M; // to drive the MIG;
     logic clkout_100M; // to drive the rest of the system;
@@ -216,11 +219,14 @@ module test_top
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
-    //assign debug_wr_strobe = user_wr_strobe;    
-    //assign debug_rd_strobe = user_rd_strobe; 
-    //assign debug_rst_sys = rst_sys_sync;
-    //assign debug_clk_sys = clk_sys;
+    /*
+    assign debug_wr_strobe = user_wr_strobe;    
+    assign debug_rd_strobe = user_rd_strobe; 
+    assign debug_rst_sys = rst_sys_sync;
+    assign debug_clk_sys = clk_sys;
     //assign debug_rst_sys_stretch = rst_sys_stretch;
+    assign debug_rst_sys_stretch = rst_sys_stretch_reg;
+      */
       
     /* -------------------------------------------------------------------
     * Synchronize the reset signals;
@@ -276,6 +282,18 @@ module test_top
     assign cnt_rst_next = (cnt_rst_reg == RST_SYS_CYCLE_NUM) ? cnt_rst_reg : cnt_rst_reg + 1;    
     assign rst_sys_stretch = (cnt_rst_reg != RST_SYS_CYCLE_NUM);
     
+    // filter the rst_sys_stretch to avoid glitch since it comes from a combinational block;
+    always_ff @(posedge clk_sys) begin
+        // note that this reset signal has been synchronized;
+        if(rst_sys_sync) begin
+            rst_sys_stretch_reg <= 0;
+        end 
+        else begin
+            rst_sys_stretch_reg <= rst_sys_stretch;
+        end    
+    end
+     
+    
     /*--------------------------------------
     * instantiation 
     --------------------------------------*/
@@ -299,12 +317,12 @@ module test_top
         // general, 
         .clk_sys(clk_sys),    // 100MHz,
         //.rst_sys(rst_sys_sync),    // asynchronous system reset,
-        .rst_sys(rst_sys_stretch),
+        .rst_sys(rst_sys_stretch_reg),
         
         //  MIG interface 
         // memory system,
         .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
-        .rst_mem_n(~rst_sys_stretch),      // active low to reset the mig interface,
+        .rst_mem_n(~rst_sys_stretch_reg),      // active low to reset the mig interface,
         
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
@@ -367,7 +385,7 @@ module test_top
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
     always_ff @(posedge clk_sys) begin
         // reset signal has been synchronized;
-        if(rst_sys_sync) begin
+        if(rst_sys_stretch_reg) begin
         //if(rst_sys_sync) begin
             wr_data_reg <= 0;
             timer_reg <= 0;

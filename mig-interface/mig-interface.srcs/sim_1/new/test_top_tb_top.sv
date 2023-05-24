@@ -50,6 +50,8 @@ module test_top_tb_top();
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
+    logic debug_wr_strobe;
+    logic debug_rd_strobe;
     logic debug_rst_sys;
     logic debug_clk_sys;
     logic debug_rst_sys_stretch;
