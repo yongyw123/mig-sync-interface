@@ -50,6 +50,8 @@ module test_top_tb_top();
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
+    logic debug_rst_sys;
+    logic debug_clk_sys;
     logic debug_MIG_init;
     logic debug_MMCM_locked;
     logic debug_MIG_user_ready;
@@ -125,12 +127,16 @@ module test_top_tb_top();
              
     /* monitoring */
     initial begin
-           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d",
+           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, init_complete: %0b, mmcm_locked: %0b, mig_ready: %0b, fsm_reg: %0d, LED: %0d",
             $time,
             uut.state_reg.name,
-            uut.state_next.name,
-            uut.LED            
+            uut.state_next.name,            
+            uut.LED[15],            
+            uut.LED[14],
+            uut.LED[13],
+            uut.LED[12:9],
+            uut.LED[8:0]
             );           
-    end                        
+    end                               
 
 endmodule

@@ -76,7 +76,7 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt, // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
@@ -84,6 +84,8 @@ module test_top
         *-----------------------------------*/
         //output logic debug_wr_strobe,
         //output logic debug_rd_strobe
+        output logic debug_rst_sys,
+        output logic debug_clk_sys
                         
     );
     /*--------------------------------------
@@ -98,12 +100,28 @@ module test_top
     logic clkout_100M; // to drive the rest of the system;
     logic locked;
     
-    //// register to filter out reset signals;
+    //// register to synchronize out reset signals;
     logic rst_sys_raw;    // to invert the input reset;
-    logic rst_sys_01_reg;
-    logic rst_sys_02_reg;
+    (* ASYNC_REG = "TRUE" *) logic rst_sys_01_reg, rst_sys_02_reg;    
     logic rst_sys_sync;          
     logic rst_mmcm;
+    
+    /*
+    NOTE on ASYNC_REG;
+    1. This is reported in the route design;
+    2. Encountered Error: "TIMING-10#1 Warning
+        Missing property on synchronizer  
+        One or more logic synchronizer has been detected between 2 clock domains 
+        but the synchronizer does not have the property ASYNC_REG defined on one 
+        or both registers.
+        It is recommended to run report_cdc for a complete and detailed CDC coverage
+    "
+    3. See Xilinx UG901 (https://docs.xilinx.com/r/en-US/ug901-vivado-synthesis/ASYNC_REG)
+    The ASYNC_REG is an attribute that affects many processes in the Vivado tools flow. 
+    The purpose of this attribute is to inform the tool that a register is capable of receiving 
+    asynchronous data in the D input pin relative to the source clock, 
+    or that the register is a synchronizing register within a synchronization chain.
+    */
     
     /////////// ddr2 MIG general signals
     // user signals for the uut;
@@ -187,8 +205,8 @@ module test_top
     --------------------------------------*/
     assign clk_sys = clkout_100M;
     //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
-    //assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
-    assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
+    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
+    //assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
     
     assign rst_mmcm = (!CPU_RESETN);
            
@@ -202,7 +220,8 @@ module test_top
     *-----------------------------------*/
     //assign debug_wr_strobe = user_wr_strobe;    
     //assign debug_rd_strobe = user_rd_strobe; 
-    
+    assign debug_rst_sys = rst_sys;
+    assign debug_clk_sys = clk_sys;
       
     /* -------------------------------------------------------------------
     * Synchronize the reset signals;
@@ -212,8 +231,28 @@ module test_top
     * filter out any glitch;
     -------------------------------------------------------------------*/
     
+    /*
+    note
+    there are various clocks to consider when used to synchronize the reset signals;
+    one thing;
+    it might be a bad idea to use the MMCM clock to synchronize the reset 
+    signal for which it is used to reset the MMCM ....
+    
+    by above, it seems a safer choice would be to use the original "raw" clock
+    from the port?
+    but then this would cause some implementation problems;
+    multiple errors such as clock redefinition would be triggered;
+    reason: the whole system uses two "different" 100MHz clock ...
+    
+    so what should it be?
+    for now, let's stick with using the MMCM clock ... the bad idea;
+    and implement a control to control the sycnhronized reset signal period
+    for other systems except for the MMCM clock ...
+    */
+    
+    always_ff @(posedge clk_in_100M) begin
     //always_ff @(posedge clk_sys) begin
-    always_ff @(posedge clk_mem) begin
+    //always_ff @(posedge clk_mem) begin
         rst_sys_01_reg  <= rst_sys_raw;
         rst_sys_02_reg  <= rst_sys_01_reg; 
         rst_sys         <= rst_sys_02_reg;  // triple-synchronizer; oh well...
@@ -241,10 +280,7 @@ module test_top
         //  from the user system
         // general, 
         .clk_sys(clk_sys),    // 100MHz,
-        //.rst_sys(rst_sys),    // asynchronous system reset,
-        
-        // use a common reset (whichever is longer);
-        .rst_sys(~rst_mem_n),
+        .rst_sys(rst_sys),    // asynchronous system reset,
         
         //  MIG interface 
         // memory system,
@@ -375,17 +411,20 @@ module test_top
             
         case(state_reg)
             ST_CHECK_INIT: begin
+                // debugging;
+                debug_FSM_reg = 1;
+                    
                 // important to wait for the memory to be initialized/calibrated;
                 // block until it finishes;
                 if(MIG_user_init_complete) begin
                     state_next = ST_WRITE_SETUP;
-                                        
-                    // debugging;
-                    debug_FSM_reg = 1;
                 end
             end      
             
             ST_WRITE_SETUP: begin
+                // debugging;
+                debug_FSM_reg = 2;
+                
                 // prepare the write data and address and hold them
                 // stable for the upcoming write request;
                 wr_data_next = index_reg;
@@ -395,73 +434,83 @@ module test_top
                 
                 state_next = ST_WRITE;       
                 
-                // debugging;
-                debug_FSM_reg = 2;     
+                     
             end
             
             ST_WRITE: begin
+                // debugging;
+                debug_FSM_reg = 3;
+
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
                 
                     //user_wr_strobe = 1'b1;
                 
-                    state_next = ST_WRITE_WAIT;
-                    
-                    // debugging;
-                    debug_FSM_reg = 3;
+                    state_next = ST_WRITE_WAIT;                    
                 end
             end
         
             ST_WRITE_WAIT: begin
+                // debugging;
+                debug_FSM_reg = 4;
+                
+                /* IMPORTANT to NOTE;
+                this might a malicious blocking practice;
+                if the complete flag is missed ...
+                need to figure out some safeguard;
+                */
                 if(MIG_user_transaction_complete) begin 
                     state_next = ST_READ_SETUP;
-                    
-                    // debugging;
-                    debug_FSM_reg = 4;
                 end                                
             end
             
             ST_READ_SETUP: begin
+                // debugging;
+                debug_FSM_reg = 5;
                  
                 // note that the the address line is already
                 // stable in the default section above; for the upcoming read request;
                 state_next = ST_READ;
                 user_rd_strobe_next = 1'b1;
                                 
-                // debugging;
-                debug_FSM_reg = 5;
+                
             end
             
             ST_READ: begin
+                // debugging;
+                debug_FSM_reg = 6;
+                
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
                     
                     //user_rd_strobe = 1'b1;
                     
                     state_next = ST_READ_WAIT;
-                    
-                    // debugging;
-                    debug_FSM_reg = 6;
                 end
             end
             
-            ST_READ_WAIT: begin               
+            ST_READ_WAIT: begin  
+                // debugging;
+                debug_FSM_reg = 7;
+                             
+                /* IMPORTANT to NOTE;
+                this might a malicious blocking practice;
+                if the complete flag is missed ...
+                need to figure out some safeguard;
+                */
                 if(MIG_user_transaction_complete) begin
                     timer_next = 0; // load the timer;
                     state_next = ST_LED_WAIT;
-                                        
-                    // debugging;
-                    debug_FSM_reg = 7;
                 end                                                
             end 
             
             ST_LED_WAIT: begin
+                // debugging;
+                debug_FSM_reg = 8;
+                
                 // do not move on after the timer has expired;
                 if(timer_reg == (TIMER_THRESHOLD-1)) begin
                     state_next = ST_GEN;
-                    
-                    // debugging;
-                    debug_FSM_reg = 8;     
                 end 
                 else begin
                     timer_next = timer_reg + 1;
@@ -469,14 +518,14 @@ module test_top
             end
         
             ST_GEN: begin
+                // debugging;
+                debug_FSM_reg = 9;
+                
                 // for now; incremental based;
                 index_next = index_reg + 1;
                 
                 // free running;
                 state_next = ST_WRITE_SETUP;
-                
-                // debugging;
-                debug_FSM_reg = 9;
                 
                 // wraps around after certain threshold;                
                 if(index_reg == (INDEX_THRESHOLD-1)) begin
@@ -496,7 +545,7 @@ module test_top
     // LED[15]; MSB stores the MIG init calibration status;    
     // LED[14] stores the MMCM locked status;
     // LED[13] stores MIG app readiness;
-    // LED[12:10] stores the FSM integer representation of the current state;
-    // LED[9:0] stores the read data; 
+    // LED[12:9] stores the FSM integer representation of the current state;
+    // LED[8:0] stores the read data; 
     assign LED =  {MIG_user_init_complete, locked, MIG_user_ready, debug_FSM_reg, user_rd_data[8:0]};
 endmodule
