@@ -146,7 +146,7 @@ module test_top
     // to display which state the FSM is in on the led
     // to debug whether the FSM stuck at some point ...
     // enumerate the FSM from 1 to 8;
-    logic [3:0] debug_FSM_reg, debug_FSM_next;
+    logic [3:0] debug_FSM_reg;
     
     // register to filter the glitch when writing the write data;
     // there is a register within the uut for read data; so not necessary;    
@@ -308,7 +308,7 @@ module test_top
     
     ////////////////////////////////////////////////////////////////////////////////////
      // ff;
-    always_ff @(posedge clk_sys, posedge rst_sys)
+    always_ff @(posedge clk_sys, posedge rst_sys) begin
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
         if(rst_sys) begin
             wr_data_reg <= 0;
@@ -317,10 +317,7 @@ module test_top
             state_reg <= ST_CHECK_INIT;
             user_addr_reg <= 0;     
             user_wr_strobe_reg <= 1'b0;
-            user_rd_strobe_reg <= 1'b0;   
-                        
-            /// debugging;
-            debug_FSM_reg <= 1; 
+            user_rd_strobe_reg <= 1'b0;                                        
              
         end
         else begin
@@ -330,13 +327,12 @@ module test_top
             state_reg <= state_next;
             user_addr_reg <= user_addr_next;
             user_wr_strobe_reg <= user_wr_strobe_next;
-            user_rd_strobe_reg <= user_rd_strobe_next;
-            
-            /// debugging;
-            debug_FSM_reg <= debug_FSM_next; 
+            user_rd_strobe_reg <= user_rd_strobe_next;                         
 
         end
-
+    end
+    
+    
     // fsm;
     always_comb begin
        // default;
@@ -358,9 +354,6 @@ module test_top
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
         
-        /// debugging;
-        debug_FSM_next = debug_FSM_reg;
-                                            
         /* 
         state:
         1. ST_CHECK_INIT: wait for the memory initialization to complete before starting everything else;
@@ -386,10 +379,9 @@ module test_top
                 // block until it finishes;
                 if(MIG_user_init_complete) begin
                     state_next = ST_WRITE_SETUP;
-                    
-                    
+                                        
                     // debugging;
-                    debug_FSM_next = 2;
+                    debug_FSM_reg = 1;
                 end
             end      
             
@@ -404,7 +396,7 @@ module test_top
                 state_next = ST_WRITE;       
                 
                 // debugging;
-                debug_FSM_next = 3;     
+                debug_FSM_reg = 2;     
             end
             
             ST_WRITE: begin
@@ -416,7 +408,7 @@ module test_top
                     state_next = ST_WRITE_WAIT;
                     
                     // debugging;
-                    debug_FSM_next = 4;
+                    debug_FSM_reg = 3;
                 end
             end
         
@@ -425,7 +417,7 @@ module test_top
                     state_next = ST_READ_SETUP;
                     
                     // debugging;
-                    debug_FSM_next = 5;
+                    debug_FSM_reg = 4;
                 end                                
             end
             
@@ -435,10 +427,9 @@ module test_top
                 // stable in the default section above; for the upcoming read request;
                 state_next = ST_READ;
                 user_rd_strobe_next = 1'b1;
-                
-                
+                                
                 // debugging;
-                debug_FSM_next = 6;
+                debug_FSM_reg = 5;
             end
             
             ST_READ: begin
@@ -450,7 +441,7 @@ module test_top
                     state_next = ST_READ_WAIT;
                     
                     // debugging;
-                    debug_FSM_next = 7;
+                    debug_FSM_reg = 6;
                 end
             end
             
@@ -458,10 +449,9 @@ module test_top
                 if(MIG_user_transaction_complete) begin
                     timer_next = 0; // load the timer;
                     state_next = ST_LED_WAIT;
-                    
-                    
+                                        
                     // debugging;
-                    debug_FSM_next = 8;
+                    debug_FSM_reg = 7;
                 end                                                
             end 
             
@@ -471,7 +461,7 @@ module test_top
                     state_next = ST_GEN;
                     
                     // debugging;
-                    debug_FSM_next = 9;     
+                    debug_FSM_reg = 8;     
                 end 
                 else begin
                     timer_next = timer_reg + 1;
@@ -486,7 +476,7 @@ module test_top
                 state_next = ST_WRITE_SETUP;
                 
                 // debugging;
-                debug_FSM_next = 1;
+                debug_FSM_reg = 9;
                 
                 // wraps around after certain threshold;                
                 if(index_reg == (INDEX_THRESHOLD-1)) begin
@@ -497,9 +487,6 @@ module test_top
             // should not reach this state;
             default: begin
                 state_next = ST_CHECK_INIT;
-                
-                // debugging;
-                debug_FSM_next = 1;
             end  // nop;
         endcase
     end     
