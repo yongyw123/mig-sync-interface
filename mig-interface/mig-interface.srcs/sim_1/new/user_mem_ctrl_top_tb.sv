@@ -160,14 +160,6 @@ module user_mem_ctrl_top_tb();
            #(T/2);
         end
     
-     /* reset pulse */
-     initial
-        begin
-            rst_sys = 1'b1;
-            #(100);
-            rst_sys = 1'b0;
-            #(100);
-        end
         
     /* monitoring */
     initial begin

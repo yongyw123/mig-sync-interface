@@ -24,6 +24,8 @@ module user_mem_ctrl_tb
     (
         // general;
         input logic clk_sys,
+        output logic rst_sys,
+        
         
         // stimulus for uut;
         output logic user_wr_strobe,
@@ -48,6 +50,12 @@ module user_mem_ctrl_tb
     
     initial
     begin        
+        /* initial reset pulse */
+        rst_sys = 1'b1;
+        #(100);
+        rst_sys = 1'b0;
+        #(100);
+ 
         /* setting up logging system 
         * created file could be located under ./sim_1/behav/xsim
         */
@@ -70,6 +78,20 @@ module user_mem_ctrl_tb
         user_addr <= addr01;
         user_wr_data = {64'hFFFF_EEEE_DDDD_CCCC, 64'hBBBB_AAAA_9999_8888};        
                
+        wait(MIG_user_init_complete == 1'b1);
+        #(100);
+        
+        
+        /* test 01.5: reset after MIG finishes calibrated */
+        rst_sys = 1'b1;
+        #(100);
+        rst_sys = 1'b0;
+        #(100);
+        
+        
+        wait(MIG_user_init_complete == 1'b0);
+        @(posedge clk_sys);
+        
         wait(MIG_user_init_complete == 1'b1);
         #(100);
         
@@ -265,6 +287,8 @@ module user_mem_ctrl_tb
         //$fdisplay(fd, "completed all %0d test; status: OK", TEST_ARRAY_SIZE);
         //$fclose(fd);   
         $stop;
+        
+               
         
     end
     
