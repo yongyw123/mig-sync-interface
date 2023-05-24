@@ -85,26 +85,33 @@ module test_top
         //output logic debug_wr_strobe,
         //output logic debug_rd_strobe
         output logic debug_rst_sys,
-        output logic debug_clk_sys
+        output logic debug_clk_sys,
+        output logic debug_rst_sys_stretch
                         
     );
     /*--------------------------------------
     * signal declarations 
     --------------------------------------*/
-    /////////// general;   
-    logic rst_sys;
-    logic clk_sys;  // 100MHz from the MMCM;
+    // clock;
+    logic clk_sys;  // 100MHz generated from the MMCM;
+    
+    /////////// reset;   
+    logic rst_sys_sync; // synchronized system reset;
+    
+    // register to synchronize out reset signals;
+    logic rst_sys_raw;    // to invert the input reset;
+    (* ASYNC_REG = "TRUE" *) logic rst_sys_01_reg, rst_sys_02_reg;    
+
+    // to stretch the synchronized signal over some N system clock cycles;
+    localparam RST_SYS_CYCLE_NUM = 1024;
+    logic [11:0] cnt_rst_reg, cnt_rst_next;
+    logic rst_sys_stretch;
        
     /////////// MMCM;
     logic clkout_200M; // to drive the MIG;
     logic clkout_100M; // to drive the rest of the system;
     logic locked;
     
-    //// register to synchronize out reset signals;
-    logic rst_sys_raw;    // to invert the input reset;
-    (* ASYNC_REG = "TRUE" *) logic rst_sys_01_reg, rst_sys_02_reg;    
-    logic rst_sys_sync;          
-    logic rst_mmcm;
     
     /*
     NOTE on ASYNC_REG;
@@ -204,14 +211,15 @@ module test_top
     * signal mapping; 
     --------------------------------------*/
     assign clk_sys = clkout_100M;
-    //assign rst_sys = (!CPU_RESETN) && (!locked); // active high for system reset;
+    //assign rst_sys_sync = (!CPU_RESETN) && (!locked); // active high for system reset;
     assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
     //assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
     
     assign rst_mmcm = (!CPU_RESETN);
            
-    //assign rst_mem_n = (!rst_sys) && (locked);
-    assign rst_mem_n = (!rst_sys);
+    //assign rst_mem_n = (!rst_sys_sync) && (locked);
+    //assign rst_mem_n = (!rst_sys_sync);
+    assign rst_mem_n = (!rst_sys_stretch);
     assign clk_mem = clkout_200M;  
     
     /*-----------------------------------
@@ -220,8 +228,9 @@ module test_top
     *-----------------------------------*/
     //assign debug_wr_strobe = user_wr_strobe;    
     //assign debug_rd_strobe = user_rd_strobe; 
-    assign debug_rst_sys = rst_sys;
+    assign debug_rst_sys = rst_sys_sync;
     assign debug_clk_sys = clk_sys;
+    assign debug_rst_sys_stretch = rst_sys_stretch;
       
     /* -------------------------------------------------------------------
     * Synchronize the reset signals;
@@ -250,13 +259,32 @@ module test_top
     for other systems except for the MMCM clock ...
     */
     
-    always_ff @(posedge clk_in_100M) begin
-    //always_ff @(posedge clk_sys) begin
+    //always_ff @(posedge clk_in_100M) begin
+    always_ff @(posedge clk_sys) begin
     //always_ff @(posedge clk_mem) begin
         rst_sys_01_reg  <= rst_sys_raw;
         rst_sys_02_reg  <= rst_sys_01_reg; 
-        rst_sys         <= rst_sys_02_reg;  // triple-synchronizer; oh well...
+        rst_sys_sync         <= rst_sys_02_reg;  // triple-synchronizer; oh well...
     end
+    
+    
+    /*--------------------------------------------------
+    * To stretch the synchronized rst_sys over N system clock periods;
+    * where the system clock is the 100MHz clock generated from MMCM;
+    --------------------------------------------------*/
+    always_ff @(posedge clk_sys) begin
+        // note that this reset signal has been synchronized;
+        if(rst_sys_sync) begin
+            cnt_rst_reg <= 0;
+        end 
+        else begin
+            cnt_rst_reg <= cnt_rst_next;
+        end    
+    end
+    // next state logic;
+    // stop the count if the threshold has been met;
+    assign cnt_rst_next = (cnt_rst_reg == RST_SYS_CYCLE_NUM) ? cnt_rst_reg : cnt_rst_reg + 1;    
+    assign rst_sys_stretch = (cnt_rst_reg != RST_SYS_CYCLE_NUM);
     
     /*--------------------------------------
     * instantiation 
@@ -280,12 +308,13 @@ module test_top
         //  from the user system
         // general, 
         .clk_sys(clk_sys),    // 100MHz,
-        .rst_sys(rst_sys),    // asynchronous system reset,
+        //.rst_sys(rst_sys_sync),    // asynchronous system reset,
+        .rst_sys(rst_sys_stretch),
         
         //  MIG interface 
         // memory system,
         .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
-        .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
+        .rst_mem_n(~rst_sys_stretch),      // active low to reset the mig interface,
         
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
@@ -344,9 +373,9 @@ module test_top
     
     ////////////////////////////////////////////////////////////////////////////////////
      // ff;
-    always_ff @(posedge clk_sys, posedge rst_sys) begin
+    always_ff @(posedge clk_sys, posedge rst_sys_stretch) begin
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
-        if(rst_sys) begin
+        if(rst_sys_sync) begin
             wr_data_reg <= 0;
             timer_reg <= 0;
             index_reg <= 0;
@@ -536,7 +565,7 @@ module test_top
             // should not reach this state;
             default: begin
                 state_next = ST_CHECK_INIT;
-            end  // nop;
+            end 
         endcase
     end     
     

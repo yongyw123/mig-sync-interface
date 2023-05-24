@@ -52,6 +52,7 @@ module test_top_tb_top();
     *-----------------------------------*/
     logic debug_rst_sys;
     logic debug_clk_sys;
+    logic debug_rst_sys_stretch;
     logic debug_MIG_init;
     logic debug_MMCM_locked;
     logic debug_MIG_user_ready;
