@@ -122,16 +122,7 @@ module test_top_tb_top();
            clk_in_100M = 1'b0;  
            #(T/2);
         end
-    
-     /* reset pulse */
-     initial
-        begin
-            CPU_RESETN = 1'b0;
-            #(100);
-            CPU_RESETN = 1'b1;
-            #(100);
-        end          
-    
+             
     /* monitoring */
     initial begin
            $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, LED: %0d",

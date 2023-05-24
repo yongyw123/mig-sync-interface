@@ -28,8 +28,14 @@ module test_top_tb
     );
     
     localparam LED_END_RANGE = 8;
-    
+        
     initial begin
+        /* initial reset pulse */
+        CPU_RESETN = 1'b0;
+        #(100);
+        CPU_RESETN = 1'b1;
+        #(100);
+
         
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
