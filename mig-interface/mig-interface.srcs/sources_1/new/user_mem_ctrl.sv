@@ -271,15 +271,39 @@ module user_mem_ctrl
     // 2. app_rdy;
     // 3. transaction complete status;
     assign init_calib_complete_async = init_calib_complete;
-    assign  app_rdy_async = app_rdy;
+    assign app_rdy_async = app_rdy;
 
     FF_synchronizer_fast_to_slow
     #(.WIDTH(2))
     FF_synchronizer_fast_to_slow_status_unit
     (
         // destination; slow domain;
+        /* note on the reset signal;
+        in the event of a cpu reset, it takes time for the
+        certain MIG signals to reset;
+        simulation suggests that a system reset pulse does not reset these two signals:
+        {init_calib_complete_async, app_rdy_asycn} immediately; it takes above 100 cpu clock cycles;
+               
+        Signals that reset at the same time cpu reset is asserted;
+        1. the ui_clock is reset and held down instantaneously with the cpu reset;
+            and does not start running stably until ui_clk_sync_rst is deasserted;            
+        2. ui_clk_sync_rst;
+        
+        by above; using the cpu reset solely will cause incorrect signal to the user;
+        by above, it takes some time for other MIG signals to change;
+        this is not desirable;
+        
+        as such, we shall use the ui_clk_sync_rst from the MIG;
+        from the cpu perspective; this is an asycnhronous reset since it 
+        is based on the UI clock rather than the cpu 100Mhz clock;
+        
+        impact; this is a bad practice (at least in abstract)
+        as ideally the reset should be associated with the clock
+        for the slow domain;        
+        */
         .clk_dest(clk_sys),  
-        .rst_dest(rst_sys),  
+        //.rst_dest(rst_sys),
+        .rst_dest(ui_clk_sync_rst),    // see the note above;  
         
         // source; from fast domain
         .in_async({init_calib_complete_async, app_rdy_async}),
