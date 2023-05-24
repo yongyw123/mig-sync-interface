@@ -27,19 +27,20 @@ module test_top_tb
         output logic CPU_RESETN            
     );
     
+    localparam LED_END_RANGE = 9;
     
     initial begin
         
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
-        wait(LED[13:0] == 1);
+        wait(LED[LED_END_RANGE:0] == 1);
         
         // first round is done;
-        wait(LED[13:0] == 0);
-        wait(LED[13:0] == 1);
+        wait(LED[LED_END_RANGE:0] == 0);
+        wait(LED[LED_END_RANGE:0] == 1);
         
         // second round is done;
-        wait(LED[13:0] == 0);
+        wait(LED[LED_END_RANGE:0] == 0);
         
         @(posedge clk_in_100M);
         
@@ -53,14 +54,14 @@ module test_top_tb
         
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
-        wait(LED[13:0] == 1);
+        wait(LED[LED_END_RANGE:0] == 1);
         
         // first round is done;
-        wait(LED[13:0] == 0);
-        wait(LED[13:0] == 1);
+        wait(LED[LED_END_RANGE:0] == 0);
+        wait(LED[LED_END_RANGE:0] == 1);
         
         // second round is done;
-        wait(LED[13:0] == 0);
+        wait(LED[LED_END_RANGE:0] == 0);
         
         @(posedge clk_in_100M);
         

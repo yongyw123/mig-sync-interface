@@ -44,11 +44,11 @@ module test_top
         // counter/timer;
         // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
         //TIMER_THRESHOLD = 200_000_000,
-        TIMER_THRESHOLD = 100_000_000,  // one second;
+        TIMER_THRESHOLD = 50_000_000,  // 0.5 second;
         
         // traffic generator to issue the addr;
         // here we just simply use incremental basis;
-        INDEX_THRESHOLD = 65536 // wrap around; 2^{16};
+        INDEX_THRESHOLD = 1024 // wrap around; 2^{10};
     )     
     (
         // general;
@@ -141,6 +141,12 @@ module test_top
     */
     typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
     state_type state_reg, state_next;    
+    
+    ///// debugging state;
+    // to display which state the FSM is in on the led
+    // to debug whether the FSM stuck at some point ...
+    // enumerate the FSM from 1 to 8;
+    logic [3:0] debug_FSM_reg, debug_FSM_next;
     
     // register to filter the glitch when writing the write data;
     // there is a register within the uut for read data; so not necessary;    
@@ -312,7 +318,11 @@ module test_top
             state_reg <= ST_CHECK_INIT;
             user_addr_reg <= 0;     
             user_wr_strobe_reg <= 1'b0;
-            user_rd_strobe_reg <= 1'b0;    
+            user_rd_strobe_reg <= 1'b0;   
+                        
+            /// debugging;
+            debug_FSM_reg <= 1; 
+             
         end
         else begin
             wr_data_reg <= wr_data_next;
@@ -322,6 +332,10 @@ module test_top
             user_addr_reg <= user_addr_next;
             user_wr_strobe_reg <= user_wr_strobe_next;
             user_rd_strobe_reg <= user_rd_strobe_next;
+            
+            /// debugging;
+            debug_FSM_reg <= debug_FSM_next; 
+
         end
 
     // fsm;
@@ -344,6 +358,9 @@ module test_top
         
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
+        
+        /// debugging;
+        debug_FSM_next = debug_FSM_reg;
                                             
         /* 
         state:
@@ -370,6 +387,10 @@ module test_top
                 // block until it finishes;
                 if(MIG_user_init_complete) begin
                     state_next = ST_WRITE_SETUP;
+                    
+                    
+                    // debugging;
+                    debug_FSM_next = 2;
                 end
             end      
             
@@ -381,7 +402,10 @@ module test_top
                 
                 user_wr_strobe_next = 1'b1;
                 
-                state_next = ST_WRITE;            
+                state_next = ST_WRITE;       
+                
+                // debugging;
+                debug_FSM_next = 3;     
             end
             
             ST_WRITE: begin
@@ -391,12 +415,18 @@ module test_top
                     //user_wr_strobe = 1'b1;
                 
                     state_next = ST_WRITE_WAIT;
+                    
+                    // debugging;
+                    debug_FSM_next = 4;
                 end
             end
         
             ST_WRITE_WAIT: begin
                 if(MIG_user_transaction_complete) begin 
                     state_next = ST_READ_SETUP;
+                    
+                    // debugging;
+                    debug_FSM_next = 5;
                 end                                
             end
             
@@ -406,6 +436,10 @@ module test_top
                 // stable in the default section above; for the upcoming read request;
                 state_next = ST_READ;
                 user_rd_strobe_next = 1'b1;
+                
+                
+                // debugging;
+                debug_FSM_next = 6;
             end
             
             ST_READ: begin
@@ -415,6 +449,9 @@ module test_top
                     //user_rd_strobe = 1'b1;
                     
                     state_next = ST_READ_WAIT;
+                    
+                    // debugging;
+                    debug_FSM_next = 7;
                 end
             end
             
@@ -422,13 +459,20 @@ module test_top
                 if(MIG_user_transaction_complete) begin
                     timer_next = 0; // load the timer;
                     state_next = ST_LED_WAIT;
+                    
+                    
+                    // debugging;
+                    debug_FSM_next = 8;
                 end                                                
             end 
             
             ST_LED_WAIT: begin
                 // do not move on after the timer has expired;
                 if(timer_reg == (TIMER_THRESHOLD-1)) begin
-                    state_next = ST_GEN;     
+                    state_next = ST_GEN;
+                    
+                    // debugging;
+                    debug_FSM_next = 9;     
                 end 
                 else begin
                     timer_next = timer_reg + 1;
@@ -442,6 +486,9 @@ module test_top
                 // free running;
                 state_next = ST_WRITE_SETUP;
                 
+                // debugging;
+                debug_FSM_next = 1;
+                
                 // wraps around after certain threshold;                
                 if(index_reg == (INDEX_THRESHOLD-1)) begin
                     index_next = 0;
@@ -451,6 +498,9 @@ module test_top
             // should not reach this state;
             default: begin
                 state_next = ST_CHECK_INIT;
+                
+                // debugging;
+                debug_FSM_next = 1;
             end  // nop;
         endcase
     end     
@@ -459,5 +509,6 @@ module test_top
     // led output;   
     // LED[15]; MSB stores the MIG init calibration status;    
     // LED[14] stores the MMCM locked status;
-    assign LED =  {MIG_user_init_complete, locked, user_rd_data[13:0]};
+    // LED[13:10] stores the FSM integer representation of the current state; 
+    assign LED =  {MIG_user_init_complete, locked, debug_FSM_reg, user_rd_data[9:0]};
 endmodule
