@@ -72,15 +72,15 @@ module FF_synchronizer_fast_to_slow
     or that the register is a synchronizing register within a synchronization chain.
     */
     
-    (* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] sync_reg;
-    always @(posedge clk_dest, posedge rst_dest) begin
+    (* ASYNC_REG = "TRUE" *) logic [WIDTH-1:0] sync_reg_01, sync_reg_02;
+    always_ff @(posedge clk_dest, posedge rst_dest) begin
         if(rst_dest) begin
-            sync_reg <= 0;
-            out_sync <= 0;
+            sync_reg_01 <= 0;
+            sync_reg_02 <= 0;
         end else begin
-            sync_reg <= in_async;
-            out_sync <= sync_reg;            
+            sync_reg_01 <= in_async;
+            sync_reg_02 <= sync_reg_01;            
         end
     end
-    
+    assign out_sync = sync_reg_02;
 endmodule

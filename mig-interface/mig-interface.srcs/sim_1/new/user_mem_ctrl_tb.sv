@@ -259,6 +259,9 @@ module user_mem_ctrl_tb
          end
         
         $display("completed all %0d test; status: OK", TEST_ARRAY_SIZE);
+        
+        
+        
         //$fdisplay(fd, "completed all %0d test; status: OK", TEST_ARRAY_SIZE);
         //$fclose(fd);   
         $stop;

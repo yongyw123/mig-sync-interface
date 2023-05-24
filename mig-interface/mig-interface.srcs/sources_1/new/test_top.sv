@@ -176,7 +176,7 @@ module test_top
     // power on reset generator;          
     -------------------------------------------------------------------*/
      logic [15:0] por_counter = 16'hFFFF;
-     always @ (posedge clk_sys) begin
+     always_ff @ (posedge clk_sys) begin
         if(por_counter) begin
             por_counter <= por_counter - 1 ;
        end
@@ -250,7 +250,6 @@ module test_top
         // memory system,
         .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
         .rst_mem_n(rst_mem_n),      // active low to reset the mig interface,
-        
         
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
@@ -509,6 +508,8 @@ module test_top
     // led output;   
     // LED[15]; MSB stores the MIG init calibration status;    
     // LED[14] stores the MMCM locked status;
-    // LED[13:10] stores the FSM integer representation of the current state; 
-    assign LED =  {MIG_user_init_complete, locked, debug_FSM_reg, user_rd_data[9:0]};
+    // LED[13] stores MIG app readiness;
+    // LED[12:10] stores the FSM integer representation of the current state;
+    // LED[9:0] stores the read data; 
+    assign LED =  {MIG_user_init_complete, locked, MIG_user_ready, debug_FSM_reg, user_rd_data[8:0]};
 endmodule

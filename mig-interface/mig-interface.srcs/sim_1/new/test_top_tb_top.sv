@@ -50,8 +50,17 @@ module test_top_tb_top();
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
-    logic debug_wr_strobe;
-    logic debug_rd_strobe;
+    logic debug_MIG_init;
+    logic debug_MMCM_locked;
+    logic debug_MIG_user_ready;
+    logic [3:0] debug_FSM;    
+    logic [9:0] debug_rd_data;
+    assign debug_MIG_init = LED[15];
+    assign debug_MMCM_locked = LED[14];
+    assign debug_MIG_user_ready = LED[13];
+    assign debug_FSM = LED[12:9];
+    assign debug_rd_data = LED[8:0];
+    
     
     /*------------------------------------
     * instantiation 

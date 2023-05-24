@@ -67,17 +67,18 @@ module FF_synchronizer_slow_to_fast
     */
 
     
-    (* ASYNC_REG = "TRUE" *) logic sync_reg;
-    always @(posedge f_clk or negedge f_rst_n) begin
+    (* ASYNC_REG = "TRUE" *) logic sync_reg_01, sync_reg_02;
+    always_ff @(posedge f_clk or negedge f_rst_n) begin
         if(~f_rst_n) begin 
-            sync_reg <= 1'b0;
-            out_sync <= 1'b0;
+            sync_reg_01 <= 1'b0;
+            sync_reg_02 <= 1'b0;
         end
 	    else begin
-            sync_reg <= in_async;
-            out_sync <= sync_reg;	    
+            sync_reg_01 <= in_async;
+            sync_reg_02 <= sync_reg_01;	    
 	    end
     end
+    assign out_sync = sync_reg_02;
         
 endmodule
 

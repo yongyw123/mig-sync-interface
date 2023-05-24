@@ -27,7 +27,7 @@ module test_top_tb
         output logic CPU_RESETN            
     );
     
-    localparam LED_END_RANGE = 9;
+    localparam LED_END_RANGE = 8;
     
     initial begin
         
