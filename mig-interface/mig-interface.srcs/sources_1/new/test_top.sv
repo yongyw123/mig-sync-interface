@@ -48,7 +48,7 @@ module test_top
         
         // traffic generator to issue the addr;
         // here we just simply use incremental basis;
-        INDEX_THRESHOLD = 1024 // wrap around; 2^{10};
+        INDEX_THRESHOLD = 512 // wrap around; 2^{9};
     )     
     (
         // general;
@@ -76,7 +76,7 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt, // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
@@ -84,9 +84,9 @@ module test_top
         *-----------------------------------*/
         //output logic debug_wr_strobe,
         //output logic debug_rd_strobe
-        output logic debug_rst_sys,
-        output logic debug_clk_sys,
-        output logic debug_rst_sys_stretch
+        //output logic debug_rst_sys,
+        //output logic debug_clk_sys,
+        //output logic debug_rst_sys_stretch
                         
     );
     /*--------------------------------------
@@ -196,17 +196,7 @@ module test_top
     //localparam INDEX_THRESHOLD = 65536; // wrap around; 2^{16};
     //localparam INDEX_THRESHOLD = 2; // wrap around; 2^{16};
     logic [16:0] index_reg, index_next;
-    
-    /* -------------------------------------------------------------------
-    // power on reset generator;          
-    -------------------------------------------------------------------*/
-     logic [15:0] por_counter = 16'hFFFF;
-     always_ff @ (posedge clk_sys) begin
-        if(por_counter) begin
-            por_counter <= por_counter - 1 ;
-       end
-     end           
-     
+         
     /*--------------------------------------
     * signal mapping; 
     --------------------------------------*/
@@ -228,9 +218,9 @@ module test_top
     *-----------------------------------*/
     //assign debug_wr_strobe = user_wr_strobe;    
     //assign debug_rd_strobe = user_rd_strobe; 
-    assign debug_rst_sys = rst_sys_sync;
-    assign debug_clk_sys = clk_sys;
-    assign debug_rst_sys_stretch = rst_sys_stretch;
+    //assign debug_rst_sys = rst_sys_sync;
+    //assign debug_clk_sys = clk_sys;
+    //assign debug_rst_sys_stretch = rst_sys_stretch;
       
     /* -------------------------------------------------------------------
     * Synchronize the reset signals;
@@ -373,9 +363,12 @@ module test_top
     
     ////////////////////////////////////////////////////////////////////////////////////
      // ff;
-    always_ff @(posedge clk_sys, posedge rst_sys_stretch) begin
+    //always_ff @(posedge clk_sys, posedge rst_sys_stretch) begin    
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
+    always_ff @(posedge clk_sys) begin
+        // reset signal has been synchronized;
         if(rst_sys_sync) begin
+        //if(rst_sys_sync) begin
             wr_data_reg <= 0;
             timer_reg <= 0;
             index_reg <= 0;
@@ -393,7 +386,6 @@ module test_top
             user_addr_reg <= user_addr_next;
             user_wr_strobe_reg <= user_wr_strobe_next;
             user_rd_strobe_reg <= user_rd_strobe_next;                         
-
         end
     end
     
@@ -418,6 +410,8 @@ module test_top
         
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
+        
+        debug_FSM_reg = 1;
         
         /* 
         state:
