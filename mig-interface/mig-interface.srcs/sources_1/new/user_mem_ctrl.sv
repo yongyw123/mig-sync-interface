@@ -602,7 +602,7 @@ module user_mem_ctrl
             ST_WRITE_DONE: begin
                 // debugging;
                 debug_FSM = 6;
-                
+                                                
                 // check for the acknowledge for the write request;
                 // to confirm the write request has been accepted;
                 // otherwise; resubmit the write request?               
@@ -624,10 +624,12 @@ module user_mem_ctrl
                 be written;         
                 */
                 //else if(~app_rdy) begin
+                
                 else begin
                     // introduce two extra clock cycle delays;
                     state_next = ST_WRITE_RETRY;                
-                end                               
+                end
+                                              
             end
             
             ST_WRITE_RETRY: begin
