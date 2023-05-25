@@ -240,7 +240,7 @@ module test_top
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
-    /*
+    logic [3:0] debug_ctrl_FSM;
     assign debug_wr_strobe = user_wr_strobe;    
     assign debug_rd_strobe = user_rd_strobe; 
     assign debug_rst_sys = rst_sys_sync;
@@ -250,7 +250,7 @@ module test_top
     assign debug_rst_mig_stretch_reg = rst_mig_stretch_reg;
     assign debug_rst_sys_raw = rst_sys_raw;
     assign debug_locked = locked;
-    */
+    
     
     /* -------------------------------------------------------------------
     * Synchronize the system reset signals;
@@ -426,7 +426,8 @@ module test_top
         .debug_app_cmd(),
         .debug_app_rd_data(),        
         .debug_user_wr_strobe_sync(),
-        .debug_user_rd_strobe_sync()
+        .debug_user_rd_strobe_sync(),
+        .debug_FSM(debug_ctrl_FSM)
     );
     
     
@@ -641,5 +642,5 @@ module test_top
     // LED[13] stores MIG app readiness;
     // LED[12:9] stores the FSM integer representation of the current state;
     // LED[8:0] stores the read data; 
-    assign LED =  {MIG_user_init_complete, locked, MIG_user_ready, debug_FSM_reg, user_rd_data[8:0]};
+    assign LED =  {MIG_user_init_complete, locked, MIG_user_ready, debug_FSM_reg, debug_ctrl_FSM, user_rd_data[4:0]};
 endmodule

@@ -28,7 +28,7 @@ module test_top_tb
         //input logic debug_MMCM_locked         
     );
     
-    localparam LED_END_RANGE = 8;
+    localparam LED_END_RANGE = 4;
         
     initial begin
         /* initial reset pulse */

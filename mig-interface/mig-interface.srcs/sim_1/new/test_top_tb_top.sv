@@ -66,11 +66,13 @@ module test_top_tb_top();
     logic debug_locked;
     logic [3:0] debug_FSM;    
     logic [9:0] debug_rd_data;
+    logic [3:0] debug_ctrl_FSM; // fsm of user_mem_ctrl module
     assign debug_MIG_init = LED[15];
     assign debug_MMCM_locked = LED[14];
     assign debug_MIG_user_ready = LED[13];
     assign debug_FSM = LED[12:9];
-    assign debug_rd_data = LED[8:0];
+    assign debug_ctrl_FSM = LED[8:5];
+    assign debug_rd_data = LED[4:0];
     
     
     /*------------------------------------
@@ -136,7 +138,7 @@ module test_top_tb_top();
              
     /* monitoring */
     initial begin
-           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, init_complete: %0b, mmcm_locked: %0b, mig_ready: %0b, fsm_reg: %0d, LED: %0d",
+           $monitor("USER MONITORING - time: %0t, uut.state_reg: %s, uut.state_next: %s, init_complete: %0b, mmcm_locked: %0b, mig_ready: %0b, fsm_reg: %0d, ctrl_FSM: %0d, LED: %0d",
             $time,
             uut.state_reg.name,
             uut.state_next.name,            
@@ -144,6 +146,7 @@ module test_top_tb_top();
             uut.LED[14],
             uut.LED[13],
             uut.LED[12:9],
+            uut.LED[8:5],
             uut.LED[8:0]
             );           
     end                               
