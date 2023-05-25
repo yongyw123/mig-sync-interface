@@ -24,8 +24,8 @@ module test_top_tb
     (
         input logic clk_in_100M,
         input logic [15:0] LED,
-        output logic CPU_RESETN,
-        input logic debug_MMCM_locked         
+        output logic CPU_RESETN
+        //input logic debug_MMCM_locked         
     );
     
     localparam LED_END_RANGE = 8;

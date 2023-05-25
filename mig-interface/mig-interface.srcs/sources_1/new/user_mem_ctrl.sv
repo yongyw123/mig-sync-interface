@@ -241,12 +241,13 @@ module user_mem_ctrl
     * ST_WRITE_SECOND: to push the second 64-bit batch to the MIG Write FIFO; 
     * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
     * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
+    * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
     * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
     * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
     *-----------------------------------------------*/
     
     
-    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_READ, ST_READ_RETRY} state_type;
+    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_WRITE_RETRY, ST_READ, ST_READ_RETRY} state_type;
     state_type state_reg, state_next;
     
     always_ff @(posedge ui_clk) begin
@@ -477,6 +478,7 @@ module user_mem_ctrl
         * ST_WRITE_SECOND: to push the second 64-bit batch to the MIG Write FIFO; 
         * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
         * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
+        * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
         * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
         * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
         *-----------------------------------------------*/
@@ -572,17 +574,44 @@ module user_mem_ctrl
             ST_WRITE_DONE: begin
                 // check for the acknowledge for the write request;
                 // to confirm the write request has been accepted;
-                // otherwise; resubmit the write request;                
+                // otherwise; resubmit the write request?               
                 if(app_rdy) begin
                     transaction_complete_async = 1'b1;  // write transaction done;
                     state_next = ST_IDLE;
                 end
                 
+                /* NOTE/QUESTION
+                it is unsure which state to retry;
+                go back to ST_WRITE_SUBMIT to submit the write request OR
+                the entire write process starting from ST_WRITE_FIRST  ....
+                
+                for now, let's go back to ST_WRITE_FIRST;
+                should not cause any harm since the addr and write data are held stable
+                and transaction_complete_flag will not be asserted unless told 
+                otherwise;
+                this means that the (re-)write data will not
+                be written to the wrong address; or the wrong data will 
+                be written;         
+                */
+                else if(~app_rdy) begin
+                    // introduce two extra clock cycle delays;
+                    state_next = ST_WRITE_RETRY;                
+                end
+                
                 // mig is not ready; or something is wrong; not expected?                
                 // retry;
+                /*
                 else if(~app_rdy) begin
                     state_next = ST_WRITE_SUBMIT;
                 end
+                */
+            end
+            
+            ST_WRITE_RETRY: begin
+                // block until app is ready
+                if(app_rdy) begin
+                    state_next = ST_WRITE_FIRST; 
+                end             
             end
             
             ST_READ: begin
