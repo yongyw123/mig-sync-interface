@@ -583,12 +583,11 @@ module user_mem_ctrl
                 /* NOTE/QUESTION
                 it is unsure which state to retry;
                 go back to ST_WRITE_SUBMIT to submit the write request OR
-                the entire write process starting from ST_WRITE_FIRST  ....
+                the entire write process starting from ST_WRITE_FIRST  .../
                 
                 for now, let's go back to ST_WRITE_FIRST;
                 should not cause any harm since the addr and write data are held stable
-                and transaction_complete_flag will not be asserted unless told 
-                otherwise;
+                and transaction_complete_flag will not be asserted unless told otherwise;
                 this means that the (re-)write data will not
                 be written to the wrong address; or the wrong data will 
                 be written;         
