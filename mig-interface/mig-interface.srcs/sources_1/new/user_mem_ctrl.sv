@@ -535,8 +535,12 @@ module user_mem_ctrl
                     // push it to the MIG write fifo;
                     app_wdf_wren = 1'b1;    
                     
-                    // next chunk to complete a total of 128-bit write transaction;
-                   state_next = ST_WRITE_SECOND;
+                    // need to ensure app_rdy remains stable HIGH upon the assertion of app_wdf_wren?
+                    // otherwise; retry
+                    if(app_rdy) begin
+                        // next chunk to complete a total of 128-bit write transaction;
+                        state_next = ST_WRITE_SECOND;
+                    end                    
                 end
             end
             
@@ -557,9 +561,16 @@ module user_mem_ctrl
                     // push it into the write MIG fifo                                            
                     app_wdf_wren = 1'b1;         
                     
-                    // submit the request;                                                         
-                    state_next = ST_WRITE_SUBMIT;
-                     
+                    // need to ensure app_rdy remains stable HIGH upon the assertion of app_wdf_wren?
+                    // otherwise; retry from the first;
+                    if(app_rdy) begin
+                        // submit the request;
+                        state_next = ST_WRITE_SUBMIT;
+                    end
+                    else begin
+                        // retry;                   
+                        state_next = ST_WRITE_FIRST;
+                    end
                 end                
             end
             ST_WRITE_SUBMIT: begin
@@ -690,7 +701,7 @@ module user_mem_ctrl
                    
            // should not reach this state;             
            default:  begin
-            state_next = ST_WAIT_INIT_COMPLETE;
+                state_next = ST_WAIT_INIT_COMPLETE;
            end              
         endcase
     end
