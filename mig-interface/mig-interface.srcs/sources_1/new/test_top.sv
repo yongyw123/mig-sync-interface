@@ -48,7 +48,7 @@ module test_top
         
         // traffic generator to issue the addr;
         // here we just simply use incremental basis;
-        INDEX_THRESHOLD = 512 // wrap around; 2^{9};
+        INDEX_THRESHOLD = 32 // wrap around; 2^{5};
     )     
     (
         // general;

@@ -470,6 +470,9 @@ module user_mem_ctrl
         
         app_wdf_data    = 0;  
                 
+        // debugging;
+        debug_FSM = 0;             
+            
         /* -----------------------------------------------
         * state;
         * ST_WAIT_INIT_COMPLETE: to check MIG initialization complete status before doing everything else;
@@ -487,7 +490,7 @@ module user_mem_ctrl
                 // debugging;
                 debug_FSM = 1;
                 
-                if(init_calib_complete) begin
+                if(init_calib_complete && app_rdy) begin
                     state_next = ST_IDLE;                
                 end
             end
@@ -680,7 +683,7 @@ module user_mem_ctrl
                             // the entire read operation is concluded;             
                             transaction_complete_async = 1'b1;  // signal to the user;
                             state_next = ST_IDLE;                            
-                        end
+                        end                                              
                     end 
                 end
                 
