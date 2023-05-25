@@ -184,7 +184,9 @@ module user_mem_ctrl
         output logic [63:0] debug_app_rd_data,
         
         output logic debug_user_wr_strobe_sync,
-        output logic debug_user_rd_strobe_sync
+        output logic debug_user_rd_strobe_sync,
+        
+        output logic [3:0] debug_FSM
     );
     
     /* -----------------------------------------------
@@ -242,12 +244,10 @@ module user_mem_ctrl
     * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
     * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
     * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
-    * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
-    * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
+    * ST_READ_WAIT: to wait for MIG to signal data_valid and data_end to read the data.        
     *-----------------------------------------------*/
-    
-    
-    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_WRITE_RETRY, ST_READ, ST_READ_RETRY} state_type;
+
+    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_WRITE_RETRY, ST_READ_SUBMIT, ST_READ_WAIT} state_type;
     state_type state_reg, state_next;
     
     always_ff @(posedge ui_clk) begin
@@ -479,18 +479,23 @@ module user_mem_ctrl
         * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
         * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
         * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
-        * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
-        * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
+        * ST_READ_WAIT: to wait for MIG to signal data_valid and data_end to read the data.        
         *-----------------------------------------------*/
             
         case(state_reg) 
             ST_WAIT_INIT_COMPLETE: begin
+                // debugging;
+                debug_FSM = 1;
+                
                 if(init_calib_complete) begin
                     state_next = ST_IDLE;                
                 end
             end
 
             ST_IDLE: begin
+                // debugging;
+                debug_FSM = 2;
+                
                 // only if memory says so;
                 /* see UG586; app rdy is NOT asserted if:
                 1. init_cal_complete is not complete;
@@ -500,24 +505,20 @@ module user_mem_ctrl
                 */
                 if(app_rdy) begin
                     if(user_wr_strobe_sync) begin
-                        state_next = ST_WRITE_FIRST;
-                    
+                        state_next = ST_WRITE_FIRST;                    
                     end
                     else if(user_rd_strobe_sync) begin
-                        // submit the read request here
-                        // because it is up to the MIG to signal
-                        // when the read data is ready;                        
-                        app_cmd = MIG_CMD_READ;
-                        app_en = 1'b1;          // submit the read request;              
-                        state_next = ST_READ;   // check for the read dara;
-                        
+                        state_next = ST_READ_SUBMIT;                                              
                     end
                  end
             end
             
             ST_WRITE_FIRST: begin
+                // debugging;
+                debug_FSM = 3;
+                                
                 // wait until the write fifo has space;                                
-                if(app_wdf_rdy) begin
+                if(app_rdy && app_wdf_rdy) begin
                     
                     // prepare the write data with masking;
                     /*
@@ -540,7 +541,10 @@ module user_mem_ctrl
             end
             
             ST_WRITE_SECOND: begin
-                if(app_wdf_rdy) begin
+                // debugging;
+                debug_FSM = 4;
+                
+                if(app_rdy && app_wdf_rdy) begin
                     // all data shall be written; so enable the mask;
                     app_wdf_mask = 8'h00;
                     // extract the first 64-bit chunk from the user;
@@ -559,19 +563,32 @@ module user_mem_ctrl
                 end                
             end
             ST_WRITE_SUBMIT: begin
+                // debugging;
+                debug_FSM = 5;
+                
                 // block until mig is ready;
                 if(app_rdy) begin
                     // submit the write request;
                     app_cmd = MIG_CMD_WRITE;    
                     app_en = 1'b1;
                     
-                    // wait for ack from the mig;
-                    state_next = ST_WRITE_DONE;
+                    // need to ensure app_rdy remains stable HIGH upon the assertion of app_en;
+                    // otherwise; retry
+                    if(!app_rdy) begin
+                        state_next = ST_WRITE_RETRY;
+                    end
+                    else begin
+                        // wait for ack from the mig;
+                        state_next = ST_WRITE_DONE;
+                    end
                 end
             
             end
                        
             ST_WRITE_DONE: begin
+                // debugging;
+                debug_FSM = 6;
+                
                 // check for the acknowledge for the write request;
                 // to confirm the write request has been accepted;
                 // otherwise; resubmit the write request?               
@@ -592,28 +609,47 @@ module user_mem_ctrl
                 be written to the wrong address; or the wrong data will 
                 be written;         
                 */
-                else if(~app_rdy) begin
+                //else if(~app_rdy) begin
+                else begin
                     // introduce two extra clock cycle delays;
                     state_next = ST_WRITE_RETRY;                
-                end
-                
-                // mig is not ready; or something is wrong; not expected?                
-                // retry;
-                /*
-                else if(~app_rdy) begin
-                    state_next = ST_WRITE_SUBMIT;
-                end
-                */
+                end                               
             end
             
             ST_WRITE_RETRY: begin
+                // debugging;
+                debug_FSM = 7;
+                
                 // block until app is ready
                 if(app_rdy) begin
                     state_next = ST_WRITE_FIRST; 
                 end             
             end
             
-            ST_READ: begin
+            ST_READ_SUBMIT: begin
+                // debugging;
+                debug_FSM = 8;
+                
+                // block until MIG is ready;
+                if(app_rdy) begin
+                    // submit the read request here
+                    // because it is up to the MIG to signal
+                    // when the read data is ready;                        
+                    app_cmd = MIG_CMD_READ;
+                    app_en = 1'b1;          // submit the read request;
+                    
+                    // need to ensure app_rdy remains stable HIGH upon the assertion of app_en;
+                    // otherwise; retry
+                    if(app_rdy) begin
+                        state_next = ST_READ_WAIT;   // check for the read dara;
+                    end
+                end
+            end
+            
+            ST_READ_WAIT: begin
+                // debugging;
+                debug_FSM = 9;
+                
                 // check whether the read request has been acknowledged via app_rdy;
                 if(app_rdy) begin
                     // wait for the MIG to put the first batch read data on the bus;
@@ -637,6 +673,7 @@ module user_mem_ctrl
                     end 
                 end
                 
+                // it is not expected that app_rdy is not asserted since we assume sequential transfer;
                 // the read request is not acknowledged; or something is wrong;
                 // it may have been missed;
                 // resubmit the read request;
@@ -644,21 +681,17 @@ module user_mem_ctrl
                 // so it will be reading from the same address;
                 // and also, the transaction completon flag will not be asserted until told
                 // otherwise;
-                else if(!app_rdy) begin                    
-                    state_next = ST_READ_RETRY;
+                //else if(!app_rdy) begin                
+                else begin                    
+                    state_next = ST_READ_SUBMIT;
                 end
+                
             end
-            
-            ST_READ_RETRY: begin
-                // block until MIG is ready;
-                if(app_rdy) begin
-                    app_cmd = MIG_CMD_READ;
-                    app_en = 1'b1;          // submit the read request;
-                    state_next = ST_READ;    
-                end
-            end
-        
-           default: ;  //nop;
+                   
+           // should not reach this state;             
+           default:  begin
+            state_next = ST_WAIT_INIT_COMPLETE;
+           end              
         endcase
     end
     

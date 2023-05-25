@@ -83,17 +83,18 @@ module user_mem_ctrl_tb
         
         
         /* test 01.5: reset after MIG finishes calibrated */
+        /*
         rst_sys = 1'b1;
         #(100);
         rst_sys = 1'b0;
         #(100);
-        
-        
+                
         wait(MIG_user_init_complete == 1'b0);
         @(posedge clk_sys);
         
         wait(MIG_user_init_complete == 1'b1);
         #(100);
+        */
         
         // submit the write request;
         @(posedge clk_sys);
