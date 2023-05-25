@@ -210,11 +210,7 @@ module test_top
     
     // register to filter addr glitch when issuing;
     logic [22:0] user_addr_reg, user_addr_next;
-    
-    // register to filter the write and read request;
-    logic user_wr_strobe_reg, user_wr_strobe_next;
-    logic user_rd_strobe_reg, user_rd_strobe_next;
-    
+        
     // counter/timer;
     // 2 seconds led pause time; with 100MHz; 200MHz threshold is required;
     //localparam TIMER_THRESHOLD = 200_000_000;
@@ -445,9 +441,7 @@ module test_top
             timer_reg <= 0;
             index_reg <= 0;
             state_reg <= ST_CHECK_INIT;
-            user_addr_reg <= 0;     
-            user_wr_strobe_reg <= 1'b0;
-            user_rd_strobe_reg <= 1'b0;                                        
+            user_addr_reg <= 0;                                                         
              
         end
         else begin
@@ -455,9 +449,7 @@ module test_top
             timer_reg <= timer_next;
             index_reg <= index_next;
             state_reg <= state_next;
-            user_addr_reg <= user_addr_next;
-            user_wr_strobe_reg <= user_wr_strobe_next;
-            user_rd_strobe_reg <= user_rd_strobe_next;                         
+            user_addr_reg <= user_addr_next;                                    
         end
     end
     
@@ -471,14 +463,14 @@ module test_top
         state_next = state_reg;
         user_addr_next = user_addr_reg;
                 
-        //user_wr_strobe = 1'b0;
-        //user_rd_strobe = 1'b0;
+        user_wr_strobe = 1'b0;
+        user_rd_strobe = 1'b0;
         
-        user_wr_strobe = user_wr_strobe_reg;
-        user_rd_strobe = user_rd_strobe_reg;
+        //user_wr_strobe = user_wr_strobe_reg;
+        //user_rd_strobe = user_rd_strobe_reg;
         
-        user_wr_strobe_next = 1'b0;
-        user_rd_strobe_next = 1'b0;
+        //user_wr_strobe_next = 1'b0;
+        //user_rd_strobe_next = 1'b0;
         
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
@@ -524,9 +516,6 @@ module test_top
                 // stable for the upcoming write request;
                 wr_data_next = index_reg;
                 user_addr_next = index_reg;
-                
-                user_wr_strobe_next = 1'b1;
-                
                 state_next = ST_WRITE;       
                 
                      
@@ -537,10 +526,8 @@ module test_top
                 debug_FSM_reg = 3;
 
                 // MIG is ready to accept new request?
-                if(MIG_user_ready) begin
-                
-                    //user_wr_strobe = 1'b1;
-                
+                if(MIG_user_ready) begin                
+                    user_wr_strobe = 1'b1;                
                     state_next = ST_WRITE_WAIT;                    
                 end
             end
@@ -566,9 +553,6 @@ module test_top
                 // note that the the address line is already
                 // stable in the default section above; for the upcoming read request;
                 state_next = ST_READ;
-                user_rd_strobe_next = 1'b1;
-                                
-                
             end
             
             ST_READ: begin
@@ -577,9 +561,7 @@ module test_top
                 
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
-                    
-                    //user_rd_strobe = 1'b1;
-                    
+                    user_rd_strobe = 1'b1;
                     state_next = ST_READ_WAIT;
                 end
             end
