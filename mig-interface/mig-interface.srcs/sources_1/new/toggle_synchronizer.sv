@@ -22,7 +22,7 @@
 
 /*----------------------------
 What: Toggle Synchronizer
-Purpose: to synchronize a pulse from a fast clock domain to a slow clock domain;
+Purpose: to synchronize a pulse when crossing a clock domain;
 
 Intended Application:
 (Destination) Slow Clock Rate: 100MHz;
