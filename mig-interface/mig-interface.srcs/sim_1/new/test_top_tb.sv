@@ -37,7 +37,7 @@ module test_top_tb
         CPU_RESETN = 1'b1;
         #(100);
 
-        
+        /*
         wait(debug_MMCM_locked == 1'b1);
         #(5000);
         
@@ -48,7 +48,8 @@ module test_top_tb
         #(100);
         
         #(5000);
-        /*
+        */
+        
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
         wait(LED[LED_END_RANGE:0] == 1);
@@ -79,8 +80,7 @@ module test_top_tb
         wait(LED[LED_END_RANGE:0] == 0);
         
         @(posedge clk_in_100M);
-        
-        */
+                
         $stop; 
     end
 endmodule
