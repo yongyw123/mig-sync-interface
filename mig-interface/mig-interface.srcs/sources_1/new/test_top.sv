@@ -76,13 +76,13 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt, // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
         *-----------------------------------*/  
-        /*
+        
         output logic debug_wr_strobe,
         output logic debug_rd_strobe,
         output logic debug_rst_sys,
@@ -93,8 +93,9 @@ module test_top
         output logic debug_rst_mig_stretch_reg,
         output logic debug_ui_clk,
         output logic debug_rst_sys_raw,
-        output logic debug_locked
-        */
+        output logic debug_locked,
+        output logic debug_MIG_user_transaction_complete,
+        output logic debug_transaction_complete_async
                         
     );
     
@@ -246,6 +247,7 @@ module test_top
     assign debug_rst_mig_stretch_reg = rst_mig_stretch_reg;
     assign debug_rst_sys_raw = rst_sys_raw;
     assign debug_locked = locked;
+    assign debug_MIG_user_transaction_complete = MIG_user_transaction_complete;
     
     
     /* -------------------------------------------------------------------
@@ -418,7 +420,7 @@ module test_top
         .debug_app_wdf_end(),
         .debug_app_wdf_wren(),
         .debug_init_calib_complete(debug_init_calib_complete),
-        .debug_transaction_complete_async(),
+        .debug_transaction_complete_async(debug_transaction_complete_async),
         .debug_app_cmd(),
         .debug_app_rd_data(),        
         .debug_user_wr_strobe_sync(),
@@ -534,6 +536,11 @@ module test_top
                 this might a malicious blocking practice;
                 if the complete flag is missed ...
                 need to figure out some safeguard;
+                
+                the complete flag is one-system-clock cycle long;
+                which is synchronous to this FSM;
+                
+                so what went wrong ...?
                 */
                 if(MIG_user_transaction_complete) begin 
                     state_next = ST_READ_SETUP;
@@ -569,6 +576,11 @@ module test_top
                 this might a malicious blocking practice;
                 if the complete flag is missed ...
                 need to figure out some safeguard;
+                
+                the complete flag is one-system-clock cycle long;
+                which is synchronous to this FSM;
+                
+                so what went wrong ...?
                 */
                 if(MIG_user_transaction_complete) begin
                     timer_next = 0; // load the timer;

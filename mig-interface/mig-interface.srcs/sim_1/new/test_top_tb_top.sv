@@ -67,6 +67,8 @@ module test_top_tb_top();
     logic [3:0] debug_FSM;    
     logic [4:0] debug_rd_data;
     logic [3:0] debug_ctrl_FSM; // fsm of user_mem_ctrl module
+    logic debug_MIG_user_transaction_complete;
+    logic debug_transaction_complete_async;
     assign debug_MIG_init = LED[15];
     assign debug_MMCM_locked = LED[14];
     assign debug_MIG_user_ready = LED[13];
