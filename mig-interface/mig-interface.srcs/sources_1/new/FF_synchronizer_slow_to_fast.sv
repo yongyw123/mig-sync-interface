@@ -34,7 +34,8 @@
 *
 * Reference:
 * 1. https://www.verilogpro.com/clock-domain-crossing-part-1/#:~:text=The%20easy%20case%20is%20passing%20signals%20from%20a,these%20cases%2C%20a%20simple%20two-flip-flop%20synchronizer%20may%20suffice.
-* 2. http://www.verilab.com/files/sva_cdc_paper_dvcon2006.pdf
+* 2. https://electronics.stackexchange.com/questions/585787/why-1-5x-ratio-limitation-for-synchronizing-slow-signals-into-fast-clock-domain
+* 3. http://www.verilab.com/files/sva_cdc_paper_dvcon2006.pdf
 
 *
 */
