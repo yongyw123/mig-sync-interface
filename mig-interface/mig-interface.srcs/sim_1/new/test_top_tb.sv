@@ -24,7 +24,8 @@ module test_top_tb
     (
         input logic clk_in_100M,
         input logic [15:0] LED,
-        output logic CPU_RESETN            
+        output logic CPU_RESETN,
+        input logic debug_MMCM_locked         
     );
     
     localparam LED_END_RANGE = 8;
@@ -37,6 +38,17 @@ module test_top_tb
         #(100);
 
         
+        wait(debug_MMCM_locked == 1'b1);
+        #(5000);
+        
+        // reset yp start over;
+        CPU_RESETN = 1'b0;
+        #(100);
+        CPU_RESETN = 1'b1;
+        #(100);
+        
+        #(5000);
+        /*
         // wait for the LED to increase;
         // and wraps around twice to conclude the simulation;    
         wait(LED[LED_END_RANGE:0] == 1);
@@ -47,10 +59,7 @@ module test_top_tb
         
         // second round is done;
         wait(LED[LED_END_RANGE:0] == 0);
-        
-        @(posedge clk_in_100M);
-        
-        
+                
         // reset yp start over;
         CPU_RESETN = 1'b0;
         #(100);
@@ -71,7 +80,7 @@ module test_top_tb
         
         @(posedge clk_in_100M);
         
-        
+        */
         $stop; 
     end
 endmodule

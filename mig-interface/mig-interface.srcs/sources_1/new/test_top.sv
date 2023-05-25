@@ -90,10 +90,14 @@ module test_top
         output logic debug_rst_sys_stretch,
         output logic debug_ui_clk_sync_rst,
         output logic debug_init_calib_complete,
-        output logic debug_rst_mig_stretch_reg
+        output logic debug_rst_mig_stretch_reg,
+        output logic debug_ui_clk,
+        output logic debug_rst_sys_raw,
+        output logic debug_locked
         
                         
     );
+    
     /*--------------------------------------
     * signal declarations 
     --------------------------------------*/
@@ -170,8 +174,7 @@ module test_top
     logic MIG_user_ready;                // this implies init_complete and also other status; see UG586; app_rdy;
     logic MIG_user_transaction_complete; // read/write transaction complete?
          
-    logic clk_mem;    // MIG memory clock;
-    logic rst_mem_n;    // active low to reset the mig interface;
+    logic clk_mem;    // MIG memory clock;    
     
     /*--------------------------------------
     * application test signals 
@@ -225,16 +228,8 @@ module test_top
     /*--------------------------------------
     * signal mapping; 
     --------------------------------------*/
-    assign clk_sys = clkout_100M;
-    //assign rst_sys_sync = (!CPU_RESETN) && (!locked); // active high for system reset;
-    assign rst_sys_raw = (!CPU_RESETN) && (!locked); // active high for system reset;
-    //assign rst_sys_raw = ((!CPU_RESETN) && (!locked) && !(por_counter == 0)); // active high for system reset;
-    
-    assign rst_mmcm = (!CPU_RESETN);
-           
-    //assign rst_mem_n = (!rst_sys_sync) && (locked);
-    //assign rst_mem_n = (!rst_sys_sync);
-    assign rst_mem_n = (!rst_sys_stretch);
+    assign clk_sys = clkout_100M;        
+    assign rst_sys_raw = !(CPU_RESETN && locked); // active high for system reset;                     
     assign clk_mem = clkout_200M;  
     
     /*-----------------------------------
@@ -249,38 +244,18 @@ module test_top
     //assign debug_rst_sys_stretch = rst_sys_stretch;
     assign debug_rst_sys_stretch = rst_sys_stretch_reg;
     assign debug_rst_mig_stretch_reg = rst_mig_stretch_reg;
+    assign debug_rst_sys_raw = rst_sys_raw;
+    assign debug_locked = locked;
       
     /* -------------------------------------------------------------------
     * Synchronize the system reset signals;
     * currently; it is asynchronous
     -------------------------------------------------------------------*/
-    /*
-    note
-    there are various clocks to consider when used to synchronize the reset signals;
-    one thing;
-    it might be a bad idea to use the MMCM clock to synchronize the reset 
-    signal for which it is used to reset the MMCM ....
-    
-    by above, it seems a safer choice would be to use the original "raw" clock
-    from the port?
-    but then this would cause some implementation problems;
-    multiple errors such as clock redefinition would be triggered;
-    reason: the whole system uses two "different" 100MHz clock ...
-    
-    so what should it be?
-    for now, let's stick with using the MMCM clock ... the bad idea;
-    and implement a control to control the sycnhronized reset signal period
-    for other systems except for the MMCM clock ...
-    */
-    
-    //always_ff @(posedge clk_in_100M) begin
-    always_ff @(posedge clk_sys) begin
-    //always_ff @(posedge clk_mem) begin
+    always_ff @(posedge clk_sys) begin    
         rst_sys_01_reg  <= rst_sys_raw;
-        rst_sys_02_reg  <= rst_sys_01_reg; 
-        rst_sys_sync         <= rst_sys_02_reg;  // triple-synchronizer; oh well...
+        rst_sys_02_reg  <= rst_sys_01_reg;         
     end
-    
+    assign rst_sys_sync = rst_sys_02_reg;    
     
     /*--------------------------------------------------
     * To stretch the synchronized rst_sys over N system clock periods;
@@ -295,6 +270,7 @@ module test_top
             cnt_rst_sys_reg <= cnt_rst_sys_next;
         end    
     end
+    
     // next state logic;
     // stop the count if the threshold has been met;
     assign cnt_rst_sys_next = (cnt_rst_sys_reg == RST_SYS_CYCLE_NUM) ? cnt_rst_sys_reg : cnt_rst_sys_reg + 1;    
@@ -362,6 +338,7 @@ module test_top
     /*--------------------------------------
     * instantiation 
     --------------------------------------*/
+
     // MMCM
     clk_wiz_0 mmcm_unit
        (
@@ -369,13 +346,13 @@ module test_top
         .clk_200M(clkout_200M),     // output clk_200M
         .clk_250M(),     // output clk_250M
         .clk_100M(clkout_100M),     // output clk_100M
-        // Status and control signals
-        .reset(rst_mmcm), // input reset
+        // Status and control signals        
         .locked(locked),       // output locked
        // Clock in ports
         .clk_in1(clk_in_100M)
     );      // input clk_in1
             
+  /*
     user_mem_ctrl uut
     (
         //  from the user system
@@ -388,8 +365,7 @@ module test_top
         // memory system,
         .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
         //.rst_mem_n(~rst_sys_stretch_reg),      // active low to reset the mig interface,
-        
-        
+                
         .rst_mem_n(~rst_mig_stretch_reg),      // active low to reset the mig interface,
         //.rst_mem_n(),      // active low to reset the mig interface,
         
@@ -431,7 +407,7 @@ module test_top
         //  debugging interface (not used)            
         .debug_app_rd_data_valid(),
         .debug_app_rd_data_end(),
-        .debug_ui_clk(),
+        .debug_ui_clk(debug_ui_clk),
         .debug_ui_clk_sync_rst(debug_ui_clk_sync_rst),
         .debug_app_rdy(),
         .debug_app_wdf_rdy(),
@@ -446,10 +422,12 @@ module test_top
         .debug_user_wr_strobe_sync(),
         .debug_user_rd_strobe_sync()
     );
-    
+    */
     
     ////////////////////////////////////////////////////////////////////////////////////
-     // ff;
+    
+    
+    //     ff;
     //always_ff @(posedge clk_sys, posedge rst_sys_stretch) begin    
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
     always_ff @(posedge clk_sys) begin
