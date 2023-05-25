@@ -76,19 +76,22 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt, // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
         *-----------------------------------*/  
-        /*      
+              
         output logic debug_wr_strobe,
         output logic debug_rd_strobe,
         output logic debug_rst_sys,
         output logic debug_clk_sys,
-        output logic debug_rst_sys_stretch
-        */
+        output logic debug_rst_sys_stretch,
+        output logic debug_ui_clk_sync_rst,
+        output logic debug_init_calib_complete,
+        output logic debug_rst_mig_stretch_reg
+        
                         
     );
     /*--------------------------------------
@@ -96,26 +99,7 @@ module test_top
     --------------------------------------*/
     // clock;
     logic clk_sys;  // 100MHz generated from the MMCM;
-    
-    /////////// reset;   
-    logic rst_sys_sync; // synchronized system reset;
-    
-    // register to synchronize out reset signals;
-    logic rst_sys_raw;    // to invert the input reset;
-    (* ASYNC_REG = "TRUE" *) logic rst_sys_01_reg, rst_sys_02_reg;    
 
-    // to stretch the synchronized signal over some N system clock cycles;
-    localparam RST_SYS_CYCLE_NUM = 1024;
-    logic [11:0] cnt_rst_reg, cnt_rst_next;
-    logic rst_sys_stretch;
-    logic rst_sys_stretch_reg; // to filter for glitch;
-    
-    /////////// MMCM;
-    logic clkout_200M; // to drive the MIG;
-    logic clkout_100M; // to drive the rest of the system;
-    logic locked;
-    
-    
     /*
     NOTE on ASYNC_REG;
     1. This is reported in the route design;
@@ -131,8 +115,46 @@ module test_top
     The purpose of this attribute is to inform the tool that a register is capable of receiving 
     asynchronous data in the D input pin relative to the source clock, 
     or that the register is a synchronizing register within a synchronization chain.
-    */
+    */    
+        
+    /*-------------------------------------------------------
+    * system reset;
+    -------------------------------------------------------*/   
+    logic rst_sys_sync; // synchronized system reset;
     
+    // register to synchronize out reset signals;
+    logic rst_sys_raw;    // to invert the input reset;
+    (* ASYNC_REG = "TRUE" *) logic rst_sys_01_reg, rst_sys_02_reg;    
+
+    // to stretch the synchronized signal over some N system clock cycles;
+    localparam RST_SYS_CYCLE_NUM = 1024;
+    logic [11:0] cnt_rst_sys_reg, cnt_rst_sys_next; // width should at least hold the parameter above;
+    logic rst_sys_stretch;
+    logic rst_sys_stretch_reg; // to filter for glitch;
+    
+    
+    /*-------------------------------------------------------
+    * MIG reset;
+    * synchronize the MIG reset with respect to its own clock;
+    * MIG clock: ?? TBA ??
+    -------------------------------------------------------*/   
+    logic rst_mig_async;    // assigned to rst_sys_sync;
+    (* ASYNC_REG = "TRUE" *) logic rst_mig_01_reg, rst_mig_02_reg;  // synchronizer    
+    logic rst_mig_sync;     // synchronizer;
+    
+    // to stretch the synchronized rst mig signal over some N MIG clock cycles;
+    localparam  RST_MIG_CYCLE_NUM = 4096;
+    logic [12:0] cnt_rst_mig_reg, cnt_rst_mig_next; // width should at least hold the parameter above;
+    logic rst_mig_stretch;
+    logic rst_mig_stretch_reg; // to filter for glicth
+    
+    /*-------------------------------------------------------
+    * MMCM;
+    -------------------------------------------------------*/
+    logic clkout_200M; // to drive the MIG;
+    logic clkout_100M; // to drive the rest of the system;
+    logic locked;
+            
     /////////// ddr2 MIG general signals
     // user signals for the uut;
     logic user_wr_strobe;             // write request;
@@ -219,23 +241,19 @@ module test_top
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
-    /*
+    
     assign debug_wr_strobe = user_wr_strobe;    
     assign debug_rd_strobe = user_rd_strobe; 
     assign debug_rst_sys = rst_sys_sync;
     assign debug_clk_sys = clk_sys;
     //assign debug_rst_sys_stretch = rst_sys_stretch;
     assign debug_rst_sys_stretch = rst_sys_stretch_reg;
-      */
+    assign debug_rst_mig_stretch_reg = rst_mig_stretch_reg;
       
     /* -------------------------------------------------------------------
-    * Synchronize the reset signals;
+    * Synchronize the system reset signals;
     * currently; it is asynchronous
-    * implementation error encountered: LUT drives async reset alert
-    * implementation: use two registers (synchronizer) instead of one to
-    * filter out any glitch;
     -------------------------------------------------------------------*/
-    
     /*
     note
     there are various clocks to consider when used to synchronize the reset signals;
@@ -271,16 +289,16 @@ module test_top
     always_ff @(posedge clk_sys) begin
         // note that this reset signal has been synchronized;
         if(rst_sys_sync) begin
-            cnt_rst_reg <= 0;
+            cnt_rst_sys_reg <= 0;
         end 
         else begin
-            cnt_rst_reg <= cnt_rst_next;
+            cnt_rst_sys_reg <= cnt_rst_sys_next;
         end    
     end
     // next state logic;
     // stop the count if the threshold has been met;
-    assign cnt_rst_next = (cnt_rst_reg == RST_SYS_CYCLE_NUM) ? cnt_rst_reg : cnt_rst_reg + 1;    
-    assign rst_sys_stretch = (cnt_rst_reg != RST_SYS_CYCLE_NUM);
+    assign cnt_rst_sys_next = (cnt_rst_sys_reg == RST_SYS_CYCLE_NUM) ? cnt_rst_sys_reg : cnt_rst_sys_reg + 1;    
+    assign rst_sys_stretch = (cnt_rst_sys_reg != RST_SYS_CYCLE_NUM);
     
     // filter the rst_sys_stretch to avoid glitch since it comes from a combinational block;
     always_ff @(posedge clk_sys) begin
@@ -292,7 +310,54 @@ module test_top
             rst_sys_stretch_reg <= rst_sys_stretch;
         end    
     end
+    
      
+    /* -------------------------------------------------------------------
+    * Synchronize the MIG reset signals;
+    * currently; it is asynchronous with respect to the system clock;
+    * this should not be necessary since;
+    * MIG will internally synchronize the asynchronous reset;
+    * however, this does not work on the real HW testing;
+    * MIG does not come out of a CPU reset;
+    * so trying to do something different;
+    -------------------------------------------------------------------*/    
+    // use the synchronized system rst as the input;
+    assign rst_mig_async = rst_sys_sync;
+    always_ff @(posedge clk_mem) begin
+        rst_mig_01_reg <= rst_mig_async;
+        rst_mig_02_reg <= rst_mig_01_reg;        
+    end
+    assign rst_mig_sync = rst_mig_02_reg;
+    
+    /*--------------------------------------------------
+    * To stretch the synchronized mig reset sys over N s?? clock periods;
+    * where the ?? clock is ??
+    --------------------------------------------------*/
+    always_ff @(posedge clk_mem) begin
+        // note that this reset signal has been synchronized;
+        if(rst_mig_sync) begin
+            cnt_rst_mig_reg <= 0;
+        end 
+        else begin
+            cnt_rst_mig_reg <= cnt_rst_mig_next;
+        end    
+    end
+    // next state logic;
+    // stop the count if the threshold has been met;
+    assign cnt_rst_mig_next = (cnt_rst_mig_reg == RST_MIG_CYCLE_NUM) ? cnt_rst_mig_reg : cnt_rst_mig_reg + 1;    
+    assign rst_mig_stretch = (cnt_rst_mig_reg != RST_MIG_CYCLE_NUM);
+    
+    // filter the mig rst_sys_stretch to avoid glitch since it comes from a combinational block;
+    always_ff @(posedge clk_mem) begin
+        // note that this reset signal has been synchronized;
+        if(rst_mig_sync) begin
+            rst_mig_stretch_reg <= 0;
+        end 
+        else begin
+            rst_mig_stretch_reg <= rst_mig_stretch;
+        end    
+    end
+    
     
     /*--------------------------------------
     * instantiation 
@@ -322,7 +387,11 @@ module test_top
         //  MIG interface 
         // memory system,
         .clk_mem(clk_mem),        // 200MHz to drive MIG memory clock,
-        .rst_mem_n(~rst_sys_stretch_reg),      // active low to reset the mig interface,
+        //.rst_mem_n(~rst_sys_stretch_reg),      // active low to reset the mig interface,
+        
+        
+        .rst_mem_n(~rst_mig_stretch_reg),      // active low to reset the mig interface,
+        //.rst_mem_n(),      // active low to reset the mig interface,
         
         //interface between the user system and the memory controller,
         .user_wr_strobe(user_wr_strobe),             // write request,
@@ -363,14 +432,14 @@ module test_top
         .debug_app_rd_data_valid(),
         .debug_app_rd_data_end(),
         .debug_ui_clk(),
-        .debug_ui_clk_sync_rst(),
+        .debug_ui_clk_sync_rst(debug_ui_clk_sync_rst),
         .debug_app_rdy(),
         .debug_app_wdf_rdy(),
         .debug_app_en(),
         .debug_app_wdf_data(),
         .debug_app_wdf_end(),
         .debug_app_wdf_wren(),
-        .debug_init_calib_complete(),
+        .debug_init_calib_complete(debug_init_calib_complete),
         .debug_transaction_complete_async(),
         .debug_app_cmd(),
         .debug_app_rd_data(),        
