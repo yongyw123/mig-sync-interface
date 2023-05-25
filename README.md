@@ -226,8 +226,9 @@ add testing circuit result;
 
 ## TODO?
 
-1. Add data masking option for different width: {64, 32, 16, 8} bits for flexibility?
-2. More robust synchronizers? Currently, the implemented synchronizers assume certain conditions on the signal width and fixed clock rates on both domains.
+1. To add a debouncer for HW reset button.
+2. To add data masking option for different width: {64, 32, 16, 8} bits for flexibility?
+3. More robust synchronizers? Currently, the implemented synchronizers assume certain conditions on the signal width and fixed clock rates on both domains.
 
 ## Reference
 
