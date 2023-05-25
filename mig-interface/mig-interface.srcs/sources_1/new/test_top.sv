@@ -466,16 +466,10 @@ module test_top
         user_wr_strobe = 1'b0;
         user_rd_strobe = 1'b0;
         
-        //user_wr_strobe = user_wr_strobe_reg;
-        //user_rd_strobe = user_rd_strobe_reg;
-        
-        //user_wr_strobe_next = 1'b0;
-        //user_rd_strobe_next = 1'b0;
-        
         user_addr = user_addr_reg;
         user_wr_data = wr_data_reg;
         
-        debug_FSM_reg = 1;
+        debug_FSM_reg = 0;
         
         /* 
         state:
@@ -512,13 +506,13 @@ module test_top
                 // debugging;
                 debug_FSM_reg = 2;
                 
-                // prepare the write data and address and hold them
-                // stable for the upcoming write request;
-                wr_data_next = index_reg;
-                user_addr_next = index_reg;
-                state_next = ST_WRITE;       
-                
-                     
+                if(MIG_user_ready) begin 
+                    // prepare the write data and address and hold them
+                    // stable for the upcoming write request;
+                    wr_data_next = index_reg;
+                    user_addr_next = index_reg;
+                    state_next = ST_WRITE; 
+               end      
             end
             
             ST_WRITE: begin
@@ -549,10 +543,11 @@ module test_top
             ST_READ_SETUP: begin
                 // debugging;
                 debug_FSM_reg = 5;
-                 
-                // note that the the address line is already
-                // stable in the default section above; for the upcoming read request;
-                state_next = ST_READ;
+                if(MIG_user_ready) begin
+                    // note that the the address line is already
+                    // stable in the default section above; for the upcoming read request;
+                    state_next = ST_READ;
+                end
             end
             
             ST_READ: begin
