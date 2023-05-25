@@ -137,8 +137,7 @@ module user_mem_ctrl_top_tb();
     .clk_200M(clk_200M),     // output clk_200M
     .clk_250M(),     // output clk_250M
     .clk_100M(),     // output clk_100M
-    // Status and control signals
-    .reset(rst_sys), // input reset
+    // Status and control signals    
     .locked(locked),       // output locked
    // Clock in ports
     .clk_in1(clk_sys)

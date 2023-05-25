@@ -222,7 +222,7 @@ module user_mem_ctrl_tb
             TEST_ARRAY[i] = {128{$random}};        
         end
         
-        // sequential write;
+        // burst write;
         for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
             // setup;
             @(posedge clk_sys);
@@ -243,7 +243,7 @@ module user_mem_ctrl_tb
         
         end
         
-        // sequential read;
+        // burst read;
         for(int i = 0; i < TEST_ARRAY_SIZE; i++) begin
             // setup;
             @(posedge clk_sys);

@@ -242,9 +242,11 @@ module user_mem_ctrl
     * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
     * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
     * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
+    * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
     *-----------------------------------------------*/
     
-    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_READ} state_type;
+    
+    typedef enum {ST_WAIT_INIT_COMPLETE, ST_IDLE, ST_WRITE_FIRST, ST_WRITE_SECOND, ST_WRITE_SUBMIT, ST_WRITE_DONE, ST_READ, ST_READ_RETRY} state_type;
     state_type state_reg, state_next;
     
     always_ff @(posedge ui_clk) begin
@@ -476,6 +478,7 @@ module user_mem_ctrl
         * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
         * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
         * ST_READ: to wait for MIG to signal data_valid and data_end to read the data.
+        * ST_READ_RETRY: read request is not acknowledged by the MIG; retry;
         *-----------------------------------------------*/
             
         case(state_reg) 
@@ -554,6 +557,7 @@ module user_mem_ctrl
                 end                
             end
             ST_WRITE_SUBMIT: begin
+                // block until mig is ready;
                 if(app_rdy) begin
                     // submit the write request;
                     app_cmd = MIG_CMD_WRITE;    
@@ -566,11 +570,18 @@ module user_mem_ctrl
             end
                        
             ST_WRITE_DONE: begin
-                // wait for the acknowledge for the write request;
-                // to confirm the write request has been accepted;                
+                // check for the acknowledge for the write request;
+                // to confirm the write request has been accepted;
+                // otherwise; resubmit the write request;                
                 if(app_rdy) begin
                     transaction_complete_async = 1'b1;  // write transaction done;
                     state_next = ST_IDLE;
+                end
+                
+                // mig is not ready; or something is wrong; not expected?                
+                // retry;
+                else if(~app_rdy) begin
+                    state_next = ST_WRITE_SUBMIT;
                 end
             end
             
@@ -578,17 +589,44 @@ module user_mem_ctrl
                 // check whether the read request has been acknowledged via app_rdy;
                 if(app_rdy) begin
                     // wait for the MIG to put the first batch read data on the bus;
-                    if(app_rd_data_valid && ~app_rd_data_end) begin
-                        app_rd_data_fbatch_next = app_rd_data;                
-                    end
-                    // wait for the MIG to put the second (last) batch read data on the bus;
-                    else if (app_rd_data_valid && app_rd_data_end) begin                       
-                        app_rd_data_sbatch_next = app_rd_data;                
+                    if(app_rd_data_valid) begin
+                        /* assumption; once valid is flagged by MIG;
+                        it is expected to have the data_end to be flagged 
+                        in the next MIG UI clock cycle
+                        */
+                        // first batch;
+                        if(!app_rd_data_end) begin
+                            app_rd_data_fbatch_next = app_rd_data;
+                        end
+                        // data end is flagged; second batch
+                        else begin
+                             app_rd_data_sbatch_next = app_rd_data;                
                        
-                        // the entire read operation is concluded;             
-                        transaction_complete_async = 1'b1;  // signal to the user;
-                        state_next = ST_IDLE;
-                    end                    
+                            // the entire read operation is concluded;             
+                            transaction_complete_async = 1'b1;  // signal to the user;
+                            state_next = ST_IDLE;                            
+                        end
+                    end 
+                end
+                
+                // the read request is not acknowledged; or something is wrong;
+                // it may have been missed;
+                // resubmit the read request;
+                // no harm submitting again since the addr line is held stable, by assumption;
+                // so it will be reading from the same address;
+                // and also, the transaction completon flag will not be asserted until told
+                // otherwise;
+                else if(!app_rdy) begin                    
+                    state_next = ST_READ_RETRY;
+                end
+            end
+            
+            ST_READ_RETRY: begin
+                // block until MIG is ready;
+                if(app_rdy) begin
+                    app_cmd = MIG_CMD_READ;
+                    app_en = 1'b1;          // submit the read request;
+                    state_next = ST_READ;    
                 end
             end
         
