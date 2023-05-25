@@ -112,6 +112,7 @@ module user_mem_ctrl_top_tb();
     https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US
     
     */
+    /*
     ddr2_model ddr2_model_unit
     (
         .ck(ddr2_ck_p),
@@ -130,6 +131,7 @@ module user_mem_ctrl_top_tb();
         .rdqs_n(),
         .odt(ddr2_odt)
     );
+    */
     
     // MMCM;    
     clk_wiz_0 mmcm_unit

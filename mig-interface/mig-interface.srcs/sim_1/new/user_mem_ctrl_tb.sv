@@ -51,12 +51,28 @@ module user_mem_ctrl_tb
     initial
     begin        
         /* initial reset pulse */
+        
         rst_sys = 1'b1;
         #(100);
         rst_sys = 1'b0;
         #(100);
- 
-        /* setting up logging system 
+        
+        
+        // submit the write request;
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b0;
+        
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b1;                        
+        
+        // disable write;
+        @(posedge clk_sys);
+        user_wr_strobe <= 1'b0;
+        
+        #(1000);
+        $stop;
+        
+                /* setting up logging system 
         * created file could be located under ./sim_1/behav/xsim
         */
         
@@ -291,6 +307,8 @@ module user_mem_ctrl_tb
         
                
         
+
+ 
     end
     
 endmodule
