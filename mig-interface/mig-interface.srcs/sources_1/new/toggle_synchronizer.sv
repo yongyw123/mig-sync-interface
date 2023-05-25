@@ -138,4 +138,3 @@ module toggle_synchronizer
     // output; should be synchronized by now?
     assign out_sync = stage03_reg ^ stage02_second_reg;     
 endmodule
-
