@@ -332,38 +332,7 @@ module user_mem_ctrl
         .out_sync(MIG_user_transaction_complete)
     );
     
-    //> from user to mig;
-    /*
-    note the MIG clock is 150MHz and user clock is 100MHz;
-    so MIG is exactly 1.5MHz faster than the user clock;
-    a simple double FF synchronizer may miss the event;
-    the condition must be strictly greater than 1.5 xtimes;
-    exact middle is a dangerous region;
-    
-    so, by above, to use the toggle synchronizer;    
-    */
-    // write request;
-    /*
-    toggle_synchronizer toggle_synchronizer_wr_request_unit 
-    (
-         /////// src;
-        .clk_src(clk_sys),
-        
-        // need to use the reset generated from the MIG UI;
-        // since it implies when the MIG is ready;
-        // better use this as the reset;
-        
-        .rst_src(ui_clk_sync_rst),
-        .in_async(user_wr_strobe),
-        
-        //////// dest;
-        .clk_dest(ui_clk),
-        .rst_dest(ui_clk_sync_rst),        
-        .out_sync(user_wr_strobe_sync)
-    );
-    */
-    
-    
+    //> from user to mig;    
     FF_synchronizer_slow_to_fast
     FF_synchronizer_wr_unit
     (
@@ -374,30 +343,9 @@ module user_mem_ctrl
         .f_clk(ui_clk),
         .f_rst_n(~ui_clk_sync_rst),
         .out_sync(user_wr_strobe_sync)
-    );
-    
+    );    
     
     // read request;
-    /*
-    toggle_synchronizer
-    toggle_synchronizer_rd_request_unit 
-    (
-         /////// src;
-        .clk_src(clk_sys),
-        
-        // need to use the reset generated from the MIG UI;
-        // since it implies when the MIG is ready;
-        // better use this as the reset;
-        .rst_src(ui_clk_sync_rst),
-        .in_async(user_rd_strobe),
-        
-        /////// dest;
-        .clk_dest(ui_clk),               
-        .rst_dest(ui_clk_sync_rst),        
-        .out_sync(user_rd_strobe_sync)
-    );
-    */
-            
     FF_synchronizer_slow_to_fast
     FF_synchronizer_rd_unit
     (
@@ -409,8 +357,7 @@ module user_mem_ctrl
         .f_rst_n(~ui_clk_sync_rst),
         .out_sync(user_rd_strobe_sync)
     );
-    
-    
+        
     /* mig interface unit */      
     mig_7series_0 mig_unit (
     // Memory interface ports
@@ -464,8 +411,7 @@ module user_mem_ctrl
     .sys_rst                        (rst_mem_n) // input  sys_rst (ACTIVE LOW);
 
     );
-    
-   
+       
     /* -----------------------------------------------------
     *  debugging interface 
     ------------------------------------------------------*/
