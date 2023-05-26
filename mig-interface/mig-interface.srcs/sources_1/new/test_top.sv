@@ -81,7 +81,7 @@ module test_top
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
-        *-----------------------------------*/  
+        *-----------------------------------*/          
         /*
         output logic debug_wr_strobe,
         output logic debug_rd_strobe,
@@ -96,7 +96,7 @@ module test_top
         output logic debug_locked,
         output logic debug_MIG_user_transaction_complete,
         output logic debug_transaction_complete_async
-        */                
+        */           
     );
     
     /*--------------------------------------
@@ -186,18 +186,19 @@ module test_top
     ///////////     
     /* 
     state:
-    1. ST_CHECK_INIT: wait for the memory initialization to complete before starting everything else;
-    2. ST_WRITE_SETUP: prepare the write data and the addr;
-    3. ST_WRITE: write to the ddr2;     
-    4. ST_WRITE_WAIT: wait for the write transaction to complete;
-    5. ST_READ_SETUP: prepare the addr;
-    6. ST_READ: read from the ddr2;
-    7. ST_READ_WAIT: wait for the read data to be valid;
-    8. ST_LED_WAIT: timer wait for led display;    
-    9. ST_GEN: to generate the next test data;
-    */
-    //typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
-    typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN, ST_WR_DEBUG, ST_RD_DEBUG} state_type;
+    1. ST_CHECK_INIT    : wait for the memory initialization to complete before starting everything else;
+    2. ST_WRITE_SETUP   : prepare the write data and the addr;
+    3. ST_WRITE         : write to the ddr2;     
+    4. ST_WRITE_EXTEND  : To extend the write request by another clock cycle; read README;
+    5. ST_WRITE_WAIT    : wait for the write transaction to complete;
+    6. ST_READ_SETUP    : prepare the addr;
+    7. ST_READ          : read from the ddr2;
+    8. ST_READ_EXTEND   : To extend the read request by another clock cycle; read README;
+    9. ST_READ_WAIT     : wait for the read data to be valid;
+    10. ST_LED_WAIT      : timer wait for led display;    
+    11. ST_GEN           : to generate the next test data;
+    */    
+    typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_EXTEND, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_EXTEND, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
     state_type state_reg, state_next;    
     
     ///// debugging state;
@@ -434,7 +435,7 @@ module test_top
     ////////////////////////////////////////////////////////////////////////////////////
     
     
-    //     ff;
+    // ff;
     //always_ff @(posedge clk_sys, posedge rst_sys_stretch) begin    
     //always_ff @(posedge clk_in_100M, posedge rst_sys) begin    
     always_ff @(posedge clk_sys) begin
@@ -477,16 +478,18 @@ module test_top
         
         /* 
         state:
-        1. ST_CHECK_INIT: wait for the memory initialization to complete before starting everything else;
-        2. ST_WRITE_SETUP: prepare the write data and the addr;
-        3. ST_WRITE: write to the ddr2;     
-        4. ST_WRITE_WAIT: wait for the write transaction to complete;
-        5. ST_READ_SETUP: prepare the addr;
-        6. ST_READ: read from the ddr2;
-        7. ST_READ_WAIT: wait for the read data to be valid;
-        8. ST_LED_WAIT: timer wait for led display;    
-        9. ST_GEN: to generate the next test data;
-        */
+        1. ST_CHECK_INIT    : wait for the memory initialization to complete before starting everything else;
+        2. ST_WRITE_SETUP   : prepare the write data and the addr;
+        3. ST_WRITE         : write to the ddr2;     
+        4. ST_WRITE_EXTEND  : To extend the write request by another clock cycle; read README;
+        5. ST_WRITE_WAIT    : wait for the write transaction to complete;
+        6. ST_READ_SETUP    : prepare the addr;
+        7. ST_READ          : read from the ddr2;
+        8. ST_READ_EXTEND   : To extend the read request by another clock cycle; read README;
+        9. ST_READ_WAIT     : wait for the read data to be valid;
+        10. ST_LED_WAIT      : timer wait for led display;    
+        11. ST_GEN           : to generate the next test data;
+        */        
         
         /* NOTE
         Some states defined above are redundant;
@@ -525,18 +528,18 @@ module test_top
 
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin                
-                    user_wr_strobe = 1'b1;                
-                    //state_next = ST_WRITE_WAIT;
-                    state_next = ST_WR_DEBUG;                    
+                    user_wr_strobe = 1'b1;                                    
+                    state_next = ST_WRITE_EXTEND;                    
                 end
             end
-            
-            //// debugging;
-            ST_WR_DEBUG: begin            
+                        
+            // add one more clock cycle length to the wr strobe;
+            ST_WRITE_EXTEND: begin            
                 user_wr_strobe = 1'b1;
                 state_next = ST_WRITE_WAIT;
             end
-        
+            
+            
             ST_WRITE_WAIT: begin
                 // debugging;
                 debug_FSM_reg = 4;
@@ -572,17 +575,19 @@ module test_top
                 
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
-                    user_rd_strobe = 1'b1;
-                    //state_next = ST_READ_WAIT;
-                    state_next = ST_RD_DEBUG;
+                    user_rd_strobe = 1'b1;                    
+                    state_next = ST_READ_EXTEND;
                 end
             end
-            
-            ///// debugging;
-            ST_RD_DEBUG: begin
+                        
+            // add one more clock cycle length to the rd strobe;
+            ST_READ_EXTEND: begin
                 user_rd_strobe = 1'b1;
                 state_next = ST_READ_WAIT;            
             end
+            
+            
+            
             ST_READ_WAIT: begin  
                 // debugging;
                 debug_FSM_reg = 7;
