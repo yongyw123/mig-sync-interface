@@ -76,13 +76,13 @@ module test_top
         inout tri [1:0] ddr2_dqs_p,  // inout [1:0]                        ddr2_dqs_p      
         output logic [0:0] ddr2_cs_n,  // output [0:0]           ddr2_cs_n
         output logic [1:0] ddr2_dm,  // output [1:0]                        ddr2_dm
-        output logic [0:0] ddr2_odt, // output [0:0]                       ddr2_odt
+        output logic [0:0] ddr2_odt // output [0:0]                       ddr2_odt
         
         /*-----------------------------------
         * debugging interface
         * to remove for synthesis;
         *-----------------------------------*/  
-        
+        /*
         output logic debug_wr_strobe,
         output logic debug_rd_strobe,
         output logic debug_rst_sys,
@@ -96,7 +96,7 @@ module test_top
         output logic debug_locked,
         output logic debug_MIG_user_transaction_complete,
         output logic debug_transaction_complete_async
-                        
+        */                
     );
     
     /*--------------------------------------
@@ -196,7 +196,8 @@ module test_top
     8. ST_LED_WAIT: timer wait for led display;    
     9. ST_GEN: to generate the next test data;
     */
-    typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
+    //typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN} state_type;
+    typedef enum{ST_CHECK_INIT, ST_WRITE_SETUP, ST_WRITE, ST_WRITE_WAIT, ST_READ_SETUP, ST_READ, ST_READ_WAIT, ST_LED_WAIT, ST_GEN, ST_WR_DEBUG, ST_RD_DEBUG} state_type;
     state_type state_reg, state_next;    
     
     ///// debugging state;
@@ -204,6 +205,7 @@ module test_top
     // to debug whether the FSM stuck at some point ...
     // enumerate the FSM from 1 to 8;
     logic [3:0] debug_FSM_reg;
+    logic [3:0] debug_ctrl_FSM; // FSM of user_mem_ctrl module;
     
     // register to filter the glitch when writing the write data;
     // there is a register within the uut for read data; so not necessary;    
@@ -237,7 +239,7 @@ module test_top
     * debugging interface
     * to remove for synthesis;
     *-----------------------------------*/
-    logic [3:0] debug_ctrl_FSM;
+    /*
     assign debug_wr_strobe = user_wr_strobe;    
     assign debug_rd_strobe = user_rd_strobe; 
     assign debug_rst_sys = rst_sys_sync;
@@ -248,7 +250,7 @@ module test_top
     assign debug_rst_sys_raw = rst_sys_raw;
     assign debug_locked = locked;
     assign debug_MIG_user_transaction_complete = MIG_user_transaction_complete;
-    
+    */
     
     /* -------------------------------------------------------------------
     * Synchronize the system reset signals;
@@ -524,8 +526,15 @@ module test_top
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin                
                     user_wr_strobe = 1'b1;                
-                    state_next = ST_WRITE_WAIT;                    
+                    //state_next = ST_WRITE_WAIT;
+                    state_next = ST_WR_DEBUG;                    
                 end
+            end
+            
+            //// debugging;
+            ST_WR_DEBUG: begin            
+                user_wr_strobe = 1'b1;
+                state_next = ST_WRITE_WAIT;
             end
         
             ST_WRITE_WAIT: begin
@@ -564,10 +573,16 @@ module test_top
                 // MIG is ready to accept new request?
                 if(MIG_user_ready) begin
                     user_rd_strobe = 1'b1;
-                    state_next = ST_READ_WAIT;
+                    //state_next = ST_READ_WAIT;
+                    state_next = ST_RD_DEBUG;
                 end
             end
             
+            ///// debugging;
+            ST_RD_DEBUG: begin
+                user_rd_strobe = 1'b1;
+                state_next = ST_READ_WAIT;            
+            end
             ST_READ_WAIT: begin  
                 // debugging;
                 debug_FSM_reg = 7;
