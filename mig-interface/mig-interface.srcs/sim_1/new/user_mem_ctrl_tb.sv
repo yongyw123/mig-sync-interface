@@ -35,6 +35,7 @@ module user_mem_ctrl_tb
         input logic [127:0] user_rd_data,
         
         // uut status;
+        input logic locked,
         input logic MIG_user_init_complete,        // MIG done calibarating and initializing the DDR2;
         input logic MIG_user_ready,                // this implies init_complete and also other status; see UG586; app_rdy;
         input logic MIG_user_transaction_complete // read/write transaction complete?
@@ -57,22 +58,9 @@ module user_mem_ctrl_tb
         rst_sys = 1'b0;
         #(100);
         
+        wait(locked == 1'b1);
         
-        // submit the write request;
-        @(posedge clk_sys);
-        user_wr_strobe <= 1'b0;
-        
-        @(posedge clk_sys);
-        user_wr_strobe <= 1'b1;                        
-        
-        // disable write;
-        @(posedge clk_sys);
-        user_wr_strobe <= 1'b0;
-        
-        #(1000);
-        $stop;
-        
-                /* setting up logging system 
+        /* setting up logging system 
         * created file could be located under ./sim_1/behav/xsim
         */
         
