@@ -24,24 +24,21 @@ This is a simple synchronous wrapper around Xilinx Memory-interface-generated (M
     3. constraint file
 
 ## Table of Content
-1. [Background on DDR2 External Memory](#background-on-ddr2-external-memory-in-general)
-2. [MIG Configuration](#mig-configuration)
-3. [User Synchronous Interface - Port Description](#user-synchronous-interface---port-description)
-4. [Limitation + Assumption](#limitation--assumption)
-5. [Construction](#construction)
-    1. [Clock Domain Crossing (CDC)](#clock-domain-crossing-cdc)
-    2. [Write Operation](#write-operation)
-    3. [Read Operation](#read-operation)
-    4. [Address Mapping](#address-mapping)
-    5. [Data Masking](#data-masking)
-    6. [FSM](#fsm)
-6. [Simulation Results](#simulation-results)
-7. [HW Test](#hw-test)
-8. [Note on Simulation](#note-on-the-simulation)
-9. [Documenting Mistakes and Errors](#documenting-mistakes-and-errors)
-9. [Clock Constraint](#clock-constraint)
-10. [TODO?](#todo)
-11. [Reference](#reference)
+1. [MIG Configuration](#mig-configuration)
+2. [Block Diagram, Port Description and Some Comments](#block-diagram-port-description-and-some-comments)
+3. [Limitation + Assumption](#summary-limitation--assumption)
+4. [Construction](#construction)
+    1. [Clock Domain Crossing (CDC)](#construction---clock-domain-crossing-cdc)
+    2. [Write and Read Operation](#construction---write--read-operation)
+    3. [Address Mapping](#construction---address-mapping)
+    4. [Data Masking](#construction---data-masking)
+    5. [FSM](#construction---fsm-of-user_mem_ctrlsv)
+5. [Simulation](#simulation)
+6. [HW Test](#hw-test)
+7. [Documenting Mistakes, Errors and Struggles](#documenting-mistakes-errors-and-struggles)
+8. [Clock Constraint](#clock-constraint)
+9. [TODO?](#todo)
+10. [Reference](#reference)
 
 ---
 
@@ -294,19 +291,45 @@ A simplified FSM is shown in Figure ??. The FSM states are defined as follows:
 ![Figure ?](/doc/diagram/fsm_user_mem_ctrl.png "Figure ?? : FSM of user_mem_ctrl")
 ---
 
-## Simulation Results
+## Simulation
 
-1. add simulation; check if it matches with the abstracted timing parameters; t_{ras}, ... etc;
-2. add write and read time;
+This section documents the following:
+
+1. Note on the simulation.
+2. Simulation Results on:
+    - Set 01: Write Transaction
+    - Set 02: Read Transaction
+    - Set 03: Immediate Read After A Write
+
+### Note on the Simulation
+
+1. When simulating with the (ip-generated) MIG interface core, one needs to import the simulation files from the IP-examples: ddr2_model.v and ddr2_model_parameters.vh.
+2. These simulation files provides a DDR2 model for the MIG interface to interface with. Thus, whatever the simulation result is, it is based on this DDR2 model.
+3. These models could also be obtained from the DDR2 vendor website under Simulation Models: <https://www.micron.com/products/dram/ddr2-sdram/part-catalog/mt47h64m16nf-25e-aat/>
+4. Reference: <https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US>
 
 ### Set 01: Write Transaction
 
-See Figure ??, simulation shows it takes about ?? ns for the data to be written to the memory after the write request has been submitted and accepted. This is asserted by the "ddr2_dq" line shown in Figure ??. This confirms that:
+See Figure ??.
+Simulation shows that the write operation is functional: the transaction complete flag is eventually asserted after submitting a write request.
 
-1. 
+It takes about 250 ns for the data to be written to the memory after the write request has been submitted and accepted. This is indicated by the non-High Impedance of the "ddr2_dq" line shown in Figure ??. This matches closely with the minimum write cycle time, tWC of 260ns from the Digilent Tutorial [7].
 
+Observe that the completion flag is asserted before the data is written into the memory. This is by the FSM construction (limitation).
+
+*Figure ??: Simulated Write Operation*
+![Figure ?](/doc/diagram/simulation/write_op.png "Figure ?? : Simulated Write Operation")
 
 ### Set 02: Read Transaction
+
+See Figure ??
+
+Simulation shows that the read operation is functional: when the assertion of the completion flag indicates that data is valid and ready to be read. The data read matches with what is written at the same address.
+
+It takes 240ns for the completion status to be asserted after submitting the read request. This matches closely with the minimum read cycle time, tRC of 210 ns from the Digilent Tutorial [7].
+
+*Figure ??: Simulated Read Operation*
+![Figure ?](/doc/diagram/simulation/read_op.png "Figure ?? : Simulated Read Operation")
 
 
 ### Set 03: Immediate Read from the Same Address as the Write After Write Transaction Completion Flag is Asserted
@@ -337,12 +360,13 @@ By above, Read data actually matches with the previous write data at the same ad
 1. The observation above matches with the datasheet and the support article linked below.
 2. That is, [?] MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently). 
 3. Support article: <https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US>
-5. DDR2 datasheet: <https://media-www.micron.com/-/media/client/global/documents/products/data-sheet/dram/ddr2/1gb_ddr2.pdf?rev=854b480189b84d558d466bc18efe270c*/>
 
 *Figure ?? : Simulated result for Set 03 of Simulation Results.*
 ![Figure ?](/doc/diagram/simulation/annotated_figure_write_and_read_almost_concurrent.png "Figure ?? : Simulated result for Set 03 of Simulation Results.")
 
 ## HW Test
+
+### Testing Circuit
 
 Test Involved: ?? communicate with the actual DDR2 memory;
 
@@ -351,15 +375,13 @@ add testing circuit result;
 mention about the limitation: could not guarantee it works at all times...;
 especially true when sychronizer is involved ..
 
-## Note on the Simulation
+### Test Result
 
-1. When simulating with the (ip-generated) MIG interface core, one needs to import the simulation files from the IP-examples: ddr2_model.v and ddr2_model_parameters.vh
-2. These simulation files provides a DDR2 model for the MIG interface to interface with.
-3. Reference: <https://support.xilinx.com/s/question/0D52E00006hpsNVSAY/mig-simulation-initcalibcomplete-stays-low?language=en_US>
+?? insert videos for ok and not ok results; ??
 
 ---
 
-## Documenting Mistakes and Errors
+## Documenting Mistakes, Errors and Struggles
 
 This section is to document the mistakes committed, observations made and the struggles during development that worth jotting down.
 
