@@ -99,7 +99,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 ### Table 02: User Port Description
 
 - For the MIG UI Signal Description, confer [4] UG 586.
-- *There exist conditions to satisfy for certain ports; the conditions are summarized in List ?? below.
+- *There exist conditions to satisfy for certain ports; the conditions are summarized in List 01 below.
 
 | Port                 |  IO           | Description                   |
 |---                |---                |---                |
@@ -116,7 +116,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 | clk_mem   | I     | This is directly mapped to sys_clk_i of MIG UI Interface. |
 | *rst_mem_n | I     | This is directly mapped to sys_rst of MIG UI Interface. This is active LOW.   |
  
-### List: Port (Signal) Definition and Conditions
+### List 01: Port (Signal) Definition and Conditions
 
 1. "user_wr_strobe": This signal must be at least **two (2) clk_sys cycle wide** for a **single write operation**.
 2. "user_rd_strobe": This signal must be at least t**wo (2) clk_sys cycle wide** for a **single read operation**.
@@ -243,7 +243,7 @@ Similar to the write operation, it takes two cycles to read all 128-bit data. MI
 
 ## Construction - Address Mapping
 
-1. [5] The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column. Insert ?? image ??
+1. The MIG controller presents [5] a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column.
 2. The UI address provided by MIG is 27-bit wide: {Rank: 1-bit; Row: 13-bit; Column: 10-bit; Bank: 3-bit}
 3. Since there is only one rank, this is hard-coded as zero.
 4. DDR2 native data width is 16-bit; this means that the memory could accomodate a total of 2^{26} (with one rank) 16-bit data.
