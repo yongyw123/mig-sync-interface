@@ -244,6 +244,7 @@ module user_mem_ctrl
     * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
     * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
     * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
+    * ST_READ_SUBMIT: to submit the read request;
     * ST_READ_WAIT: to wait for MIG to signal data_valid and data_end to read the data.        
     *-----------------------------------------------*/
 
@@ -480,8 +481,9 @@ module user_mem_ctrl
         * ST_WRITE_SUBMIT: to submit the write request for the data in MIG Write FIFO (from these states: ST_WRITE_UPPER, LOWER;)    
         * ST_WRITE_DONE: wait for the mig to acknowledge the write request to confirm it has been accepted;
         * ST_WRITE_RETRY: write request is not acknowledged by the MIG or something went wrong; retry;
+        * ST_READ_SUBMIT: to submit the read request;
         * ST_READ_WAIT: to wait for MIG to signal data_valid and data_end to read the data.        
-        *-----------------------------------------------*/
+        *-----------------------------------------------*/    
             
         case(state_reg) 
             ST_WAIT_INIT_COMPLETE: begin
