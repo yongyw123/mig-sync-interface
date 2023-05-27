@@ -48,14 +48,17 @@ This is a simple synchronous wrapper around Xilinx Memory-interface-generated (M
 ## MIG Configuration
 Most of the configurations follow Digilent Tutorial [?].
 
-| General               | Parameter      	| Note | 
+### General
+| Parameter              | Value      	| Note | 
 |---	                |---	            |--- |
 |MIG Output Options   	|  Create Design 	| Either available option should work.     |
 |Number of Controllers  |   1	            | Unsure if it is supported in DDR2, Also, it is for simplicity. |
 | AXI4 Interface        | Disabled          | Not used  |
 | Memory Selection      | DDR2              |        |
   
-|**Controller Options**     | Parameter         | Note          |
+### Controller Options
+
+| Parameter                 | Value         | Note          |
 |---                        |---                |---            |
 | Clock Period              | 3333ps (300MHz)   |               |
 | PHY to Controller         | 2:1               | See ?? below  |
@@ -66,17 +69,21 @@ Most of the configurations follow Digilent Tutorial [?].
 | Ordering                  | Strict            | Default |
 
 
-| **Memory Options**        | Parameter         | Note          |
+### Memory Options
+
+| Parameter        | Value         | Note          |
 |---                        |---                |---            |
 | Input Clock Period        | 5000ps (200MHz)   |               |
 | Burst Type                | Sequential        | Application specific  |
 | Output Drive Strength     | Fullstrength      |   |
 | RTT (Nominal) - ODT       | 50 Ohms           | Board specific    |
-| Controlleer Chip Select Pin   | Enabled       | Not necessary since the memory only has one rank. |
+| Controller Chip Select Pin   | Enabled       | Not necessary since the memory only has one rank. |
 | Memory Address Mapping Selection | BANK -> ROW -> COLUMN | Application specific. See ?? |
 
 
-| **FPGA Options**              | Parameter         | Note      |
+### FPGA Options
+
+| Parameter              | Value         | Note      |
 |---                            |---                |---        |
 | System Clock                  | No Buffer         | This clock is to supply the 200MHz as specified in the Input Clock Period Option above. User to configure MMCM to generate this clock, so no buffer |
 | Reference Clock               | Use System Clock  | One less thing to worry |
@@ -86,29 +93,62 @@ Most of the configurations follow Digilent Tutorial [?].
 | IO Power Reduction        | ON            | Default   |
 XADC Instantiation          | Enabled       | For convenience, otherwise one needs to configure the XADC manually. |
 
-| **The Rest**                  | Parameter         | Note      |
+### The Rest
+
+| Parameter                  | Value         | Note      |
 |---                            |---                |---        |
 | Internal Termination Impedance | 50 Ohms          | Board specific          |
 | Pin Selection                 | Import "ddr2_memory_pinout.ucf"        |  This is provided by Digilent. Ensure the pinout matches with the board schematic as a sanity check.         |
 | System Signals Selection      | No connection for all: {sys_rst, init_calib_complete, tg_compare_error} | SW-wired instead of being hard-wired to a board pin. | 
 
-## Background on MIG UI Interface
+## Block Diagram, Port Description and Some Comments
 
-???
+Figure ?? shows the block diagram. Table ?? summarizes the relevant port descriptions of the module: "user_mem_ctrl.sv". 
 
-## User Setup: Synchronous Interface, Port Description
+There are three clocks involved, summarized below in Table ??. Primarily, only two clocks are of concern: (1) User System Clock, (2) MIG UI Clock. The Module: "user_mem_ctrl" synchronizes the MIG User Interface driven at UI Clock 150MHz with the User Own Space driven at System Clock 100MHz.
 
-MMCM configuration: ??
+### Table ??: User Port Description*
 
-This section discusses about the synchronous wrapper around the MIG UI interface.
+- For the MIG UI Signal Description, confer [?] UG 586.
+- *There exist conditions to satisfy for certain ports; the conditions are summarized in List ?? below.
 
-Figure ?? shows the block diagram; Table ?? lists the ports of the synchronous interface.
+| Port                 |  IO           | Description                   |
+|---                |---                |---                |
+| clk_sys                  | I          | User System Clock @ 100MHz    |
+| rst_sys                   | I         | User System Reset Signal. This does not reset the MIG UI, it has separate reset signal.   |
+| *user_wr_strobe        | I     | Write request. **This must be at least 2 clk_sys cycle wide.** |
+|  *user_rd_strobe       | I     | Read request. **This must be at least 2 clk_sys cycle wide.**|
+|  *user_addr        | I | Which address of the DDR2 to read from or write into? 23-bit wide. See Section: Address Mapping. |
+| *user_wr_data      | I | Data to be written. 128-bit wide.  |
+| user_rd_data      | O | Data read. 128-bit wide. | 
+| MIG_user_init_calib_complete | O | Synchronized "init_calib_complete" signal from MIG UI interface. |
+| MIG_user_ready    | O | Synchronized "app_rdy" signal from MIG UI interface. |
+| *MIG_user_transaction_complete | O | Indication when read/write request is "completed". See Elaborated Section below. |
+| clk_mem   | I     | This is directly mapped to sys_clk_i of MIG UI Interface. |
+| *rst_mem_n | I     | This is directly mapped to sys_rst of MIG UI Interface. This is active LOW.   |
+ 
+### List: Port (Signal) Definition and Conditions
 
-?? insert a table summarizing the signals;
-The synchronous wrapper;
-?? insert some picture;
-?? mention; which signal requires synchronizer;
-?? mention transaction complete status implies differently for write and read operation;
+1. "user_wr_strobe": This signal must be at least **two (2) clk_sys cycle wide** for a **single write operation**. This is due to a synchronization limitation. See Section: ??
+2. "user_rd_strobe": This signal must be at least t**wo (2) clk_sys cycle wide** for a **single read operation**. This is due to a synchronization limitation. See Section: ??
+3. "user_addr": This line must be held stable prior to submitting read/write request, and shall remain stable throughout until "MIG_user_transaction_complete" is asserted.
+4. *user_wr_data": This line must be held stable prior to submitting read/write request, and shall remain stable throughout until "MIG_user_transaction_complete" is asserted.
+5. "MIG_user_transaction_complete": This signal is only asserted for one clk_sys cycle after submitting read/write request, and cleared thereafter. It means differently for read and write request.
+    1. For read operation, its assertion implies that the read request has been accepted and acknowledged by MIG **AND** the data on "user_rd_data" line is valid to read. 
+    2. For write operation, its assertion implies that the write request has been accepted and acknowledged by MIG. It **DOES NOT** imply that the "user_wr_data" has been written to the actual DDR2 successfully.
+6. "rst_mem_n": This signal must be synchronized with clk_mem, and it must be asserted for at least 1024 clk_mem cycles. See Section: ??
+
+### Table ??: Clock Summary*
+
+| Designation   | Clock                         | Purpose   |
+|---            |---                            |---        |
+| clk_sys       | User System Clock @ 100MHz    | This is the clock user primarily bases on for the application.     |
+| clk_mem       | Memory Clock @ 200MHz         | This is generated from the MMCM. This is the input to the MIG Core. It is used to derive other clocks to drive the DDR2. These are abstracted away from the MIG User Interface. |
+| ui_clk        | MIG UI Clock @ 150MHz     | This is an output clock generated by the MIG UI Interface to synchronize all its MIG User signals. This value corresponds to the MIG Configuration: PHY to Controller Ratio: 2:1, where PHY Rate is 300MHz, and Controller is 300/2 = 150MHz. |
+
+### Figure ?? : Block Diagram
+![Figure ?](/doc/diagram/block_diagram.png "Figure ?? : Block Diagram")
+
 
 ## Limitation + Assumption
 
@@ -127,8 +167,6 @@ DDR2 is burst oriented. With 4:1 clock ratio and memory data width of 16-bit, DD
 
 ## Construction
 
-### Block Diagram
-
 ### Clock Domain Crossing (CDC)
 
 The system clock is asynchronous with the MIG UI Clock. The MIG interface has its own clock to drive the read and write operation; Thus, we have Clock Domain Crossing (CDC). Synchronizers are needed to handle the CDC.
@@ -140,7 +178,7 @@ There are two CDC cases:
 1. Case 01: from fast clock domain to slow clock domain;
 2. Case 02: from slow clock domain to fast clock domain;
 3. Dual-clock FIFO is a potential solution, but at the time of this writing, variants of Flip-flop sychronizers are considered.
-4. If the signal to sample is sufficiently wide, then a simple double FF synchronizer
+4. [??] If the signal to sample is sufficiently wide, then a simple double FF synchronizer
     is sufficient for both cases as log as the input is at least 3-clock cycle wides with respect to the sampling clock;
     this criteria is so that there willl be no missed events;
 5. if the signal to sample is a pulse generated from the fast clock domain, and the fast clock rate is at least 1.5 times
@@ -150,15 +188,16 @@ There are two CDC cases:
 
 ### Write Operation
 
-By above, when writing, it takes two clock cycles to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle). The user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data.
+User needs to hold address and write-data lines stable prior to and during (throughout) the assertion of the write request: "user_wr_strobe". For convenience, these lines are held until "MIG_user_transaction_complete" is asserted. 
 
 ### Read Operation
 
-Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the data is valid, and when the data is the last chunk on the data bus.
+Upon requesting a read via "user_rd_strobe", the user needs to wait for "MIG_user_transaction_complete" to be asserted so that the data on the "user_rd_data" is valid.
+
 
 ### Address Mapping
 
-1. The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column. Insert ?? image ??
+1. [???] The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column. Insert ?? image ??
 2. See the DDR2 data sheet, the UI address provided by MIG is 27-bit wide:  {Rank: 1-bit; Row: 13-bit; Column: 10-bit; Bank: 3-bit}
 3. Since there is only one rank, this is hard-coded as zero.
 4. DDR2 native data width is 16-bit; this means that the memory could accomodate a total of 2^{27} *(or 2^{26} with one rank)* 16-bit data.
@@ -285,7 +324,7 @@ This section is to document the mistakes committed, observations made and  note 
     3. Frequency: Always happen. 
     4. Solution (Possible Cause): It is unsure what is the exact cause; it takes the combination of the following to resolve the issue (?).
         1. Do not reset the MMCM. This will reset the 200MHz Clock driving the MIG. Simulation suggests that: (1) it will re-initialize the MIG (2) and MIG will remain in this state unless a MIG reset is further applied. This is not observed in practice. It is observed that MIG never asserts its app_ready/initialization complete flag (at least in a reasonable amount of time) after resetting the MMCM followed by a MIG reset. So, do not enable MMCM reset option for obvious reason.
-        2. Synchronous reset the MIG with respect to its clock: 200MHz with the reset signal is stretched (lengthened) over at least 1024 clock cycles. It is unsure why this is required since MIG will internally synchronize the reset (?)
+        2. Synchronous reset the MIG with respect to its clock: 200MHz with the reset signal stretched (lengthened) over at least 1024 clock cycles. It is unsure why this is required since MIG will internally synchronize the reset (?)
 
 3. **Invalid Operation due to the Synchronization**: 
     1. Issue: It is observed that the application module eventually stuck after running for awhile as observed in video here: ??, where it shows the first five LEDs "stuck"; it is expected that the LEDs will display integer from 0 to 32 as binary representation in a free-running manner.
@@ -301,7 +340,7 @@ This section is to document the mistakes committed, observations made and  note 
 
 ## TODO?
 
-1. To add a debouncer for HW reset button.
+1. To add a debouncer for the HW reset button.
 2. To add data masking option for different width: {64, 32, 16, 8} bits for flexibility?
 3. More robust synchronizers: with Handshakers, FIFO? Currently, the implemented synchronizers assume certain conditions on the signal width and fixed clock rates on both domains.
 
