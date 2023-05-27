@@ -154,28 +154,85 @@ DDR2 is burst oriented. With 4:1 clock ratio and memory data width of 16-bit, DD
 
 ---
 
-## Construction
+## Construction - Clock Domain Crossing (CDC)
 
-### Clock Domain Crossing (CDC)
+By above, there are two clocks to be concerned with: (1) User System Clock @ 100MHz and (2) MIG UI clock @ 150MHz. The system clock is asynchronous with the MIG UI Clock. CDC Synchronizers are required. Dual-clock FIFO is a potential solution, but at the time of this writing, variants of Flip-flop sychronizers are considered.
 
-By above, there are two clocks to be concerned with: (1) User System Clock @ 100MHz and (2) MIG UI clock @ 150MHz. The system clock is asynchronous with the MIG UI Clock. CDC Synchronizers are required.
+Denote the User System Clock as the slow clock domain, and the MIG UI Clock as the fast clock domain.
 
 **IMPORTANT:** However, only the control signals: {write request, read request} shall be synchronized; it is the user's responsibility to hold the write data bus and the address stable upon requesting for write/read. This is usually the case since we assume sequential transfer.
 
-There are two CDC cases:
+### Signals to Synchronize when Crossing
 
-1. Case 01: from fast clock domain to slow clock domain;
-2. Case 02: from slow clock domain to fast clock domain;
-3. Dual-clock FIFO is a potential solution, but at the time of this writing, variants of Flip-flop sychronizers are considered.
-4. [??] If the signal to sample is sufficiently wide, then a simple double FF synchronizer
-    is sufficient for both cases as log as the input is at least 3-clock cycle wides with respect to the sampling clock;
-    this criteria is so that there willl be no missed events;
-5. if the signal to sample is a pulse generated from the fast clock domain, and the fast clock rate is at least 1.5 times
-    faster than slow clock rate, then a toggle synchronizer is needed; otherwise, there will be missed events;
+1. From slow to fast: 
+    1. "user_write_strobe" 
+    2. "user_read_strobe"
+2. From fast to slow:
+    1. "init_calib_complete"
+    2. "app_rdy"
+    3. user_transaction_complete"
 
-?? mention the conditions/criteria for the cdc cases above; ??
+### Classification of CDC Signal Types:
 
-### Write + Read Operation
+A simple double Flip-flop as the synchronizer is sufficient to "resolve/minimize" metastability issue, but it does not guarantee that a metastable signal, if occured will resolve into a valid logical level, thus a valid operation is not guaranteed.
+
+There are three different cases to consider.
+
+1. Case 01: from fast clock domain to slow clock domain, where the signal is a pulse (one fast-clock cycle wide).
+2. Case 02: from fast to slow, where the signal is slowly varying (at least three slow-clock cycle wide)
+3. Case 03: from slow to fast, where the signal is a pulse (one slow-clock cycle wide)
+
+**Case 01**
+
+1. Type: Signal is a pulse, one fast-clock-cycle wide.
+2. Issue: Fast clock is 1.5 times faster than the slow clock. A simple double FF synchronizer is not sufficient. There will be missed events. Assuming there is no signal stretching, with MIG-clock period at 6.67 ns, a signal in one MIG-clock cycle will only be 6.67 ns wide, for which changes to the signal may happen between the rising edges of the system clock running at 10.0 ns period. The change(s) is not sampled by either of the rising edges.
+3. Impacted Signal: "user_transaction_complete"
+4. Solution: Toggle Synchronizer, as shown in Figure ??. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
+
+*Figure ??: Toggle Synchronizer*
+![Figure ??](/doc/diagram/toggle_synchronizer.png "Figure ??: Toggle Synchronizer")
+
+
+
+**Case 02**
+
+1. Type: Signal is from the fast clock domain but it is guaranteed to be at least three slow clock cycle wide.
+2. Solution: A simple double FF synchronizer is sufficient to guarantee there will be no missed events [??].
+2. Signals that meet this requirement.
+    1. "init_calib_complete". MIG only needs to assert this once upon re-initialization, and remains unchanged throughout until a reset occurs or something goes wrong.
+    2. "app_rdy". This signal will only be deasserted if one of the [???] following occurs. Otherwise, it will remain asserted (HIGH).
+        - PHY/Memory initialization is not yet completed.
+        - All the bank machines are occupied (can be viewed as the command buffer being full).
+        - A read is requested and the read buffer is full.
+
+**Case 03**
+
+1. Type: Signal is a pulse, one slow-clock-cycle wide.
+2. Note: Fast Clock is 1.5x faster than the slow clock.
+3. Timing Parameters:
+    - From ??, the *minimum* setup and hold time are 0.91 ns and 0.20 ns. 
+3. Potential Problem:
+    - Ideal: One slow clock cycle could accommodate 1.5 fast clock. This means that there will be at least one fast clock rising edge (maximum two fast clock rising edges) within a slow clock period. In the event of a setup or a hold time violation for the first rising fast clock edge, 1.5x means that there will be a second rising edge clock within the same slow-clock-period to sample the signal. This ensures valid operation.
+    - However, there is little safe margin; it might be "possible" to have setup time violated in the first rising fast-clock edge AND to have the hold time violated in the second rising fast-clock edge after taking factors such as jitter, rise/fall time, skew etc into account. This means that the signal sampled might be an invalid logic level.
+    - See Figure ??, Consider the fast rising clock edge "lags" behind the slow rising clock edge by "1 second". This means the setup time could be violated, and also the second rising fast-clock edge will be 7.67 ns relative to the first rising fast-clock edge. With hold time of ??, this means that there is only 10.0 - 7.87 ~= 2.0 ns before the signal change in the next rising slow-clock edge. Is 2.0 ns margin sufficient for the hold time not to be violated?
+
+3. Solution: For safety, stretch the signal over at least three cycle fast clock wide + double FF synchronizer. (*Stretching over two slow cycle wide also satisfies the same requirement.*)
+
+*Figure ??: Waveform for CDC Case 03*
+![Figure ??](/doc/diagram/wavedrom_synchronizer_annotated.png "Figure ?: Waveform of CDC Case 03")
+
+### Summary of the Sychronizers
+
+| Signal                    | From                 | To                 | Synchronizer Type                     |  Signal Condition         |
+|---                        |---                   |---                 |---                                    |---                        |
+| user_write_strobe         | User System Clock    | MIG UI Clock       | Double FF   | At least three (3) UI Clock cycle wide  |
+| user_read_strobe          | User System Clock    | MIG UI Clock       | Double FF    | At least three (3) UI Clock cycle wide  |
+| init_calib_complete       | MIG UI Clock         | User System Clock  | Double FF                             | At least three (3) user system clock wide |
+| app_rdy                   | MIG UI Clock         | User System Clock  | Double FF                             | At least three (3) user system clock wide |
+| user_transaction_complete | MIG UI Clock         | User System Clock  | Toggle Synchronizer                   | One UI clock cycle wide   |
+
+
+## Construction - Write + Read Operation
 
 Recall that all writing and reading are with respect to the MIG UI clock cycles.
 
@@ -184,7 +241,7 @@ Recall, when writing, it takes two UI clock cycles to complete the entire 128-bi
 Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the first (64-bit) data is valid (in the first UI clock cycle), and whether the data is the last (64-bit) chunk on the data bus (in the second UI clock cycle).
 
 
-### Address Mapping
+## Construction - Address Mapping
 
 1. [5] The MIG controller presents a flat address space to the user interface and translates it to the addressing required by the SDRAM. MIG controller is configured for sequential reads, and it maps the DDR2 as rank-bank-row-column. Insert ?? image ??
 2. The UI address provided by MIG is 27-bit wide: {Rank: 1-bit; Row: 13-bit; Column: 10-bit; Bank: 3-bit}
@@ -193,7 +250,7 @@ Similar to the write operation, it takes two cycles to read all 128-bit data. MI
 5. By above, each read/write DDR2 entire transaction is 128-bit. This corresponds to 128/16 = 8 chunks, (2^{3}), thus 3-bit. This implies that the three LSB bits of the address must be zero (the first three LSB column bits).
 6. Reference: <https://support.xilinx.com/s/article/33698?language=en_US>
 
-#### Mapping between User Address and MIG UI Address
+### Mapping between User Address and MIG UI Address
 
 By above, the user address shall be 23-bit wide (27-1-3 = 23) where -1 is for the rank; -3 is for the column as discussed above. This representation is application-specific so that each user-address integer corresponds to one 128-bit data (one-to-one). In summary, we have the following:
 
@@ -203,7 +260,7 @@ By above, the user address shall be 23-bit wide (27-1-3 = 23) where -1 is for th
 app_addr = {1'b0, user_addr, 3'b000};
 ```
 
-### Data Masking
+## Construction - Data Masking
 
 Data masking option provided by the MIG is not used. All write/read transaction will be in 128-bit. Two reasons:
 
@@ -214,7 +271,7 @@ Application Setup Example:
 
 By above, 128-bit transaction for read/write is in place as not to waste the memory space. Thus, it is up to the application to adjust with the setup, or to do the necessary masking on both ends: read/write. For example, if the application write data is only 16-bit, the application could accumulate/pack 8 data of 16-bit before writing it.
 
-### FSM of user_mem_ctrl.sv
+## Construction - FSM of user_mem_ctrl.sv
 
 This user synchronous interface only allows a single read or write at a time. MIG exposes the relevant signals that allows a simple state machine. The state machine mainly involves sending the appropriate write/read request along with the address and waiting for the relevant assertion flags, such as transaction complete from the MIG.
 
@@ -326,7 +383,7 @@ This section is to document the mistakes committed, observations made and the st
     3. Debugging: Use the LEDs to display the current FSM state.
     4. Observed: "user_mem_ctrl" module is in idle state waiting for read/write request; whereas the top (application) module: "test_top" is in the write-waiting state waiting for the transaction completion status. After multiple hit-and-probes, it is narrowed down to: "user_mem_ctrl" misses the write strobe from "test_top" for some reason. There is no logically explanation for this since the FSM's of both module are constructed to be in block-and-wait manner. This leaves "HW" explanation.
     5. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: ?? This cause offers the likely explanation as it matches with the observation.
-    6. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  This is discussed in Section: ?? In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
+    6. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
 
 ## Clock Constraint
 
@@ -347,3 +404,5 @@ This section is to document the mistakes committed, observations made and the st
 3. [Xilinx, "Article 34779 - MIG 7 Series and Virtex-6 DDR2/DDR3 - User Interface - Addressing", September 23, 2021](https://support.xilinx.com/s/article/34779?language=en_US)
 4. Digilent, "Nexys A7 Reference Manual", website, accessed 27 May 2023, <https://digilent.com/reference/programmable-logic/nexys-a7/reference-manual>
 5. Digilent, "SRAM to DDR Component Reference Manual", website, accessed 27 May 2023, <https://digilent.com/reference/learn/programmable-logic/tutorials/nexys-4-ddr-sram-to-ddr-component/start>
+6. [Mark Litterick, "Pragmatic Simulation-Based Verification of Clock Domain
+Crossing Signals and Jitter using SystemVerilog Assertions", Verilab, 2006](http://www.verilab.com/files/sva_cdc_paper_dvcon2006.pdf)
