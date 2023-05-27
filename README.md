@@ -184,15 +184,13 @@ There are three different cases to consider.
 
 **Case 01**
 
-1. Type: Signal is a pulse, one fast-clock-cycle wide.
+1. Type: Signal is a pulse, one fast-clock-cycle (6.67 ns) wide.
 2. Issue: Fast clock is 1.5 times faster than the slow clock. A simple double FF synchronizer is not sufficient. There will be missed events. Assuming there is no signal stretching, with MIG-clock period at 6.67 ns, a signal in one MIG-clock cycle will only be 6.67 ns wide, for which changes to the signal may happen between the rising edges of the system clock running at 10.0 ns period. The change(s) is not sampled by either of the rising edges.
 3. Impacted Signal: "user_transaction_complete"
 4. Solution: Toggle Synchronizer, as shown in Figure ??. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
 
 *Figure ??: Toggle Synchronizer*
 ![Figure ??](/doc/diagram/toggle_synchronizer.png "Figure ??: Toggle Synchronizer")
-
-
 
 **Case 02**
 
@@ -208,15 +206,17 @@ There are three different cases to consider.
 **Case 03**
 
 1. Type: Signal is a pulse, one slow-clock-cycle wide.
-2. Note: Fast Clock is 1.5x faster than the slow clock.
+2. Note: Fast Clock is 1.5x faster than the slow clock. Slow clock period is 10 ns; fast clock period is 6.67 ns.
 3. Timing Parameters:
-    - From ??, the *minimum* setup and hold time are 0.91 ns and 0.20 ns. 
-3. Potential Problem:
-    - Ideal: One slow clock cycle could accommodate 1.5 fast clock. This means that there will be at least one fast clock rising edge (maximum two fast clock rising edges) within a slow clock period. In the event of a setup or a hold time violation for the first rising fast clock edge, 1.5x means that there will be a second rising edge clock within the same slow-clock-period to sample the signal. This ensures valid operation.
-    - However, there is little safe margin; it might be "possible" to have setup time violated in the first rising fast-clock edge AND to have the hold time violated in the second rising fast-clock edge after taking factors such as jitter, rise/fall time, skew etc into account. This means that the signal sampled might be an invalid logic level.
-    - See Figure ??, Consider the fast rising clock edge "lags" behind the slow rising clock edge by "1 second". This means the setup time could be violated, and also the second rising fast-clock edge will be 7.67 ns relative to the first rising fast-clock edge. With hold time of ??, this means that there is only 10.0 - 7.87 ~= 2.0 ns before the signal change in the next rising slow-clock edge. Is 2.0 ns margin sufficient for the hold time not to be violated?
-
-3. Solution: For safety, stretch the signal over at least three cycle fast clock wide + double FF synchronizer. (*Stretching over two slow cycle wide also satisfies the same requirement.*)
+    - The FPGA Part Number Speed Grade is -1.
+    - From [1], Setup and Hold Times of Configurable Logic Block Flip Flops Before/After Clock, designated as "AX – DX input through MUXs and/or carry logic to CLK on A – D flip-flops" are used as the parameters. These CLB could be [2] configured as D-FF as well.
+    - These CLB FF types have the highest setup/hold time compared to other CLB FF. This sets the threshold.
+    - From [1], the **minimum** quoted setup and hold time are 0.81 ns and 0.11 ns (roughly, 0.9 ns and 0.2 ns).
+4. Potential Problem:
+    - Ideal: One slow clock cycle could accommodate 1.5 fast clock. This means that there will be at least one fast clock rising edge (maximum two fast clock rising edges) within a slow clock period. In the event of a setup or a hold time violation for the first rising fast-clock-edge, 1.5x means that there will be a second rising fast-clock-edge clock within the same slow-clock-period to sample the signal. This ensures valid operation.
+    - However, there is little safe margin (?); it might be "possible" to have setup time violated in the first rising fast-clock edge AND to have the hold time violated in the second rising fast-clock edge after taking factors such as jitter, rise/fall time, skew etc into account. This means that the signal sampled might be an invalid logic level, resulting in incorrect operation.
+    - See Figure ??, Consider the fast rising clock edge "lags" behind the slow rising clock edge by "1 second". This means the setup time could be violated, and also the second rising fast-clock edge will be 7.67 ns relative to the first rising fast-clock edge. With hold time of 0.2 ns, this means that there is only 10.0 - 7.87 ~= 2.0 ns before the signal changes at the next rising slow-clock edge. Is 2.0 ns margin sufficient for the hold time not to be violated?
+5. Solution: For safety, stretch the signal over at least three cycle fast clock wide + double FF synchronizer. (*Stretching over two slow cycle wide also satisfies the same requirement.*)
 
 *Figure ??: Waveform for CDC Case 03*
 ![Figure ??](/doc/diagram/wavedrom_synchronizer_annotated.png "Figure ?: Waveform of CDC Case 03")
