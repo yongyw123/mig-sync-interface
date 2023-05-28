@@ -143,7 +143,6 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 2. The address and write data line must be held stable.
 3. Write and Read Request: {"user_wr_strobe", "user_rd_strobe"} must be at least two user system clock (100MHz) cycles wide. This is explained in Section: [CDC](#construction---clock-domain-crossing-cdc)
 4. Unlike the read operation, there is no viable MIG UI interface signal to use to reliably assert exactly when the data is written to the DDR2 external memory (?). This is reflected in the definition of "MIG_user_transaction_complete".
-5. The synchronizers used for CDC are FF-based, no handshaking or whatsoever. Possible to have missed events (?)
 
 ---
 
