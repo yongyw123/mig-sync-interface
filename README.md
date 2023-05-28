@@ -10,19 +10,18 @@ This is a simple synchronous wrapper around Xilinx Memory-interface-generated (M
 | MIG Version       | 4.2 (Device 7 Series) |
 | Language          | System Verilog        |
 
-**Modules**
+## Modules
 
 1. *user_mem_ctrl.sv* is the synchronous wrapper.
 2. *test_top.sv* is the top application file (testing circuit) for *user_mem_ctrl*.
 
-**Navigation**
+## Navigation
 
-?? to fill up ??
-
-1. Follow Vivado structure:
-    1. source file
-    2. simulation file
-    3. constraint file
+1. It follows Vivado structure:
+    1. Source Files: ./mig-interface/mig-interface.srcs/sources_1
+    2. Simulation Files: ./mig-interface/mig-interface.srcs/sim_1/new
+    3. Constraint Files: ./mig-interface/mig-interface.srcs/constrs_1/
+    4. DDR2 Memory Pinout: ./ddr2_memory_pinout.ucf
 
 ## Table of Content
 
@@ -60,7 +59,7 @@ Table 01 shows the MIG IP configuration. Most of the configurations follow [7] D
 |---                        |---                |---            |
 | **Controller Options**    |                   |           |
 | Clock Period              | 3333ps (300MHz)   |               |
-| PHY to Controller         | 2:1               | See ?? below  |
+| PHY to Controller         | 2:1               |               |
 | Memory Part               |  MT47H64M16HR-25E |               |
 | Data Width                | 16-bit            | Native. See the DDR2 datasheet        |
 | Data Mask                 | Enabled           | Application specific  |
@@ -73,7 +72,7 @@ Table 01 shows the MIG IP configuration. Most of the configurations follow [7] D
 | Output Drive Strength     | Fullstrength      |   |
 | RTT (Nominal) - ODT       | 50 Ohms           | Board specific    |
 | Controller Chip Select Pin   | Enabled       | Not necessary since the memory only has one rank. |
-| Memory Address Mapping Selection | BANK -> ROW -> COLUMN | Application specific. See ?? |
+| Memory Address Mapping Selection | BANK -> ROW -> COLUMN | Application specific.  |
 |---                            |---                |---        |
 | **FPGA Options**  |   |   |
 | System Clock                  | No Buffer         | This clock is to supply the 200MHz as specified in the Input Clock Period Option above. User to configure MMCM to generate this clock, so no buffer |
@@ -124,7 +123,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 5. "MIG_user_transaction_complete": Upon submitting read/write request, the user needs to wait for the assertion of this signal before issuing new request. This signal is only asserted for one clk_sys and cleared thereafter. It means differently for read and write request.
     1. For read operation, its assertion implies that the read request has been accepted and acknowledged by MIG **AND** the data on "user_rd_data" line is valid to read.
     2. For write operation, its assertion implies that the write request has been accepted and acknowledged by MIG. It **DOES NOT** imply that the "user_wr_data" has been written to the actual DDR2 successfully.
-6. "rst_mem_n": This signal must be synchronized with clk_mem, and it must be asserted for at least 1024 clk_mem cycles. See Section: ??
+6. "rst_mem_n": This signal must be synchronized with clk_mem, and it must be asserted for at least 1024 clk_mem cycles. See Section: [Error Encountered](#documenting-mistakes-errors-and-struggles)
 
 ### Table 02: Clock Summary
 
@@ -142,7 +141,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 
 1. The synchronous wrapper: "user_mem_ctrl.sv" assumes sequential transfer (no concurrent read and write transaction). User is required to check for the "MIG_user_transaction_complete" after submitting request.
 2. The address and write data line must be held stable.
-3. Write and Read Request: {"user_wr_strobe", "user_rd_strobe"} must be at least two user system clock (100MHz) cycles wide. This is explained in Section: ??
+3. Write and Read Request: {"user_wr_strobe", "user_rd_strobe"} must be at least two user system clock (100MHz) cycles wide. This is explained in Section: [CDC](#construction---clock-domain-crossing-cdc)
 4. Unlike the read operation, there is no viable MIG UI interface signal to use to reliably assert exactly when the data is written to the DDR2 external memory (?). This is reflected in the definition of "MIG_user_transaction_complete".
 5. The synchronizers used for CDC are FF-based, no handshaking or whatsoever. Possible to have missed events (?)
 
@@ -187,10 +186,10 @@ There are three different cases to consider.
 1. Type: Signal is a pulse, one fast-clock-cycle (6.67 ns) wide.
 2. Issue: Fast clock is 1.5 times faster than the slow clock. A simple double FF synchronizer is not sufficient. There will be missed events. Assuming there is no signal stretching, with MIG-clock period at 6.67 ns, a signal in one MIG-clock cycle will only be 6.67 ns wide, for which changes to the signal may happen between the rising edges of the system clock running at 10.0 ns period. The change(s) is not sampled by either of the rising edges.
 3. Impacted Signal: "user_transaction_complete"
-4. Solution: Toggle Synchronizer, as shown in Figure ??. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
+4. Solution: Toggle Synchronizer, as shown in Figure 02. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
 
-*Figure ??: Toggle Synchronizer*
-![Figure ??](/doc/diagram/toggle_synchronizer.png "Figure ??: Toggle Synchronizer")
+*Figure 02: Toggle Synchronizer*
+![Figure 02](/doc/diagram/toggle_synchronizer.png "Figure 02: Toggle Synchronizer")
 
 **Case 02**
 
@@ -215,11 +214,11 @@ There are three different cases to consider.
 4. Potential Problem:
     - Ideal: One slow clock cycle could accommodate 1.5 fast clock. This means that there will be at least one fast clock rising edge (maximum two fast clock rising edges) within a slow clock period. In the event of a setup or a hold time violation for the first rising fast-clock-edge, 1.5x means that there will be a second rising fast-clock-edge clock within the same slow-clock-period to sample the signal. This ensures valid operation.
     - However, there is little safe margin (?); it might be "possible" to have setup time violated in the first rising fast-clock edge AND to have the hold time violated in the second rising fast-clock edge after taking factors such as jitter, rise/fall time, skew etc into account. This means that the signal sampled might be an invalid logic level, resulting in incorrect operation.
-    - See Figure ??, Consider the fast rising clock edge "lags" behind the slow rising clock edge by "1 second". This means the setup time could be violated, and also the second rising fast-clock edge will be 7.67 ns relative to the first rising fast-clock edge. With hold time of 0.2 ns, this means that there is only 10.0 - 7.87 ~= 2.0 ns before the signal changes at the next rising slow-clock edge. Is 2.0 ns margin sufficient for the hold time not to be violated?
+    - See Figure 03. Consider the fast rising clock edge "lags" behind the slow rising clock edge by "1 second". This means the setup time could be violated, and also the second rising fast-clock edge will be 7.67 ns relative to the first rising fast-clock edge. With hold time of 0.2 ns, this means that there is only 10.0 - 7.87 ~= 2.0 ns before the signal changes at the next rising slow-clock edge. Is 2.0 ns margin sufficient for the hold time not to be violated?
 5. Solution: For safety, stretch the signal over at least three cycle fast clock wide + double FF synchronizer. (*Stretching over two slow cycle wide also satisfies the same requirement.*)
 
-*Figure ??: Waveform for CDC Case 03*
-![Figure ??](/doc/diagram/wavedrom_synchronizer_annotated.png "Figure ?: Waveform of CDC Case 03")
+*Figure 03: Waveform for CDC Case 03*
+![Figure 03](/doc/diagram/wavedrom_synchronizer_annotated.png "Figure 03: Waveform of CDC Case 03")
 
 ### Summary of the Sychronizers
 
@@ -273,7 +272,7 @@ By above, 128-bit transaction for read/write is in place as not to waste the mem
 
 This user synchronous interface only allows a single read or write at a time. MIG exposes the relevant signals that allows a simple state machine. The state machine mainly involves sending the appropriate write/read request along with the address and waiting for the relevant assertion flags, such as transaction complete from the MIG.
 
-A simplified FSM is shown in Figure ??. The FSM states are defined as follows:
+A simplified FSM is shown in Figure 04. The FSM states are defined as follows:
 
 | **State** | **Definition** |
 |-----------|----------------|
@@ -287,9 +286,9 @@ A simplified FSM is shown in Figure ??. The FSM states are defined as follows:
 | ST_READ_SUBMIT | To submit the read request. |
 | ST_READ | To wait for MIG to signal "data_valid" and "data_end" to read the data. |
 
-*Figure ??: Simplified FSM of the Synchronous Interface of MIG: user_mem_ctrl*
+*Figure 04: Simplified FSM of the Synchronous Interface of MIG: user_mem_ctrl*
 
-![Figure ?](/doc/diagram/fsm_user_mem_ctrl.png "Figure ?? : FSM of user_mem_ctrl")
+![Figure 04](/doc/diagram/fsm_user_mem_ctrl.png "Figure 04: FSM of user_mem_ctrl")
 ---
 
 ## Simulation
@@ -311,26 +310,25 @@ This section documents the following:
 
 ### Set 01: Write Transaction
 
-See Figure ??.
+See Figure 05.
 Simulation shows that the write operation is functional: the transaction complete flag is eventually asserted after submitting a write request.
 
-It takes about 250 ns for the data to be written to the memory after the write request has been submitted and accepted. This is indicated by the non-High Impedance of the "ddr2_dq" line shown in Figure ??. This matches closely with the minimum write cycle time, tWC of 260ns from the Digilent Tutorial [7].
+It takes about 250 ns for the data to be written to the memory after the write request has been submitted and accepted. This is indicated by the non-High Impedance of the "ddr2_dq" line shown in Figure 05. This matches closely with the minimum write cycle time, tWC of 260ns from the Digilent Tutorial [7].
 
 Observe that the completion flag is asserted before the data is written into the memory. This is by the construction (see limitation).
 
-*Figure ??: Simulated Write Operation*
-![Figure ?](/doc/diagram/simulation/write_op.png "Figure ?? : Simulated Write Operation")
+*Figure 05: Simulated Write Operation*
+![Figure 05](/doc/diagram/simulation/write_op.png "Figure 05: Simulated Write Operation")
 
 ### Set 02: Read Transaction
 
-See Figure ??
-
+See Figure 06.
 Simulation shows that the read operation is functional: the assertion of the completion flag indicates that data is valid and ready to be read. The data read matches with what is written at the same address.
 
 It takes 240ns for the completion status to be asserted after submitting the read request. This matches closely with the minimum read cycle time, tRC of 210 ns from the Digilent Tutorial [7].
 
-*Figure ??: Simulated Read Operation*
-![Figure ?](/doc/diagram/simulation/read_op.png "Figure ?? : Simulated Read Operation")
+*Figure 06: Simulated Read Operation*
+![Figure 06](/doc/diagram/simulation/read_op.png "Figure 06: Simulated Read Operation")
 
 ### Set 03: Immediate Read from the Same Address as the Write After Write Transaction Completion Flag is Asserted
 
@@ -343,7 +341,7 @@ It takes 240ns for the completion status to be asserted after submitting the rea
 What happens a read request is immediately issued at the same write address after "*MIG_user_transaction_complete*" has been asserted for the previous write request? Would the data read actually match with what is written in the write request just before?
 
 **Simulated:**
-See Figure ??: . This figure shows the simulated process:
+See Figure 07: . This figure shows the simulated process:
 
 1. Write Request is submitted at Address 3.
 2. "*MIG_user_transaction_complete*" is asserted for the write request.
@@ -358,11 +356,11 @@ By above, Read data actually matches with the previous write data at the same ad
 **Possible Explanation:**
 
 1. The observation above matches with the datasheet and the support article linked below.
-2. That is, [?] MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently).
+2. MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently).
 3. Support article: <https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US>
 
-*Figure ?? : Simulated result for Set 03 of Simulation Results.*
-![Figure ?](/doc/diagram/simulation/annotated_figure_write_and_read_almost_concurrent.png "Figure ?? : Simulated result for Set 03 of Simulation Results.")
+*Figure 07: Simulated result for Set 03 of Simulation Results.*
+![Figure 07](/doc/diagram/simulation/annotated_figure_write_and_read_almost_concurrent.png "Figure 07: Simulated result for Set 03 of Simulation Results.")
 
 ## HW Test
 
@@ -374,7 +372,7 @@ By above, Read data actually matches with the previous write data at the same ad
 2. test_top.sv is the top application module that instantiates user_mem_ctrl.sv
 
 **Test:**
-"test_top.sv" involves writing and displaying the read data as binary representation to the LED. Its FSM is shown in Figure ??. The test sequence is as follows:
+"test_top.sv" involves writing and displaying the read data as binary representation to the LED. Its FSM is shown in Figure 08. The test sequence is as follows:
 
 1. Start from Address 0.
 2. Use the address as the write data, and write it.
@@ -426,8 +424,8 @@ CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Eac
 | ST_LED_WAIT       | Display the read data for N seconds.  |
 | ST_GEN            | Generate the next test data. |
 
-*Figure ?? : Simplified FSM of test_top.sv*
-![Figure ?](/doc/diagram/fsm_test_top_application.png "Figure ??: Simplified FSM of test_top.sv")
+*Figure 08: Simplified FSM of test_top.sv*
+![Figure 08](/doc/diagram/fsm_test_top_application.png "Figure 08: Simplified FSM of test_top.sv")
 
 ### Test Result
 
@@ -457,17 +455,19 @@ This section is to document the mistakes committed, observations made and the st
         2. Synchronous reset the MIG with respect to its clock: 200MHz with the reset signal stretched (lengthened) over at least 1024 clock cycles. This number 1024 works at first try, it is not rigourous. It is unsure why this synchronous condition is required since MIG will internally synchronize the reset (?)
 
 3. **Invalid Operation due to the Synchronization**:
-    1. Issue: When testing on the real HW, it is observed that the application of "test_top.sv" eventually stuck after running for awhile as observed in video here: ??, where it shows the first five LEDs "stuck"; it is expected that the LEDs will display integer from 0 to 32 as binary representation in a free-running manner.
+    1. Issue: When testing on the real HW, it is observed that the application of "test_top.sv" eventually stuck after running for awhile, where the linked video shows the first five LEDs "stuck"; it is expected that the LEDs will display integer from 0 to 31 as binary representation in a free-running manner.
     2. Video Recording Link: <https://drive.google.com/drive/folders/1wwbxzsgrZaXu72Hj7EEqSP6sNMBk8B6M?usp=share_link>
     3. Frequency: Almost everytime (eventually), and the pattern where the LEDs stuck varies each time the issue occurs.
     4. Debugging: Use the LEDs to display the current FSM state.
     5. Observed: "user_mem_ctrl" module is in idle state waiting for read/write request; whereas the top (application) module: "test_top" is in the write-waiting state waiting for the transaction completion status. After multiple hit-and-probes, it is narrowed down to: "user_mem_ctrl" misses the write strobe from "test_top" for some reason. There is no logically explanation for this since the FSM's of both module are constructed to be in block-and-wait manner. This leaves "HW" explanation.
-    6. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: ?? This cause offers the likely explanation as it matches with the observation.
+    6. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: [CDC - Case 03](#construction---clock-domain-crossing-cdc). This cause offers the likely explanation as it matches with the observation.
     7. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
 
 ## Clock Constraint
 
-??
+There exists CDC between MIG UI clock @ 150MHz and "user system clock @ 100MHz". Clock constraint is required. Currently, the timing path between these two clocks are set to false. 
+
+To identify the generated clock source, TCL commands: such as "report_CDC", "report_clocks" are useful; all information to locate the clock sources could be found in the Vivado Implementation Reports.
 
 ## TODO?
 
