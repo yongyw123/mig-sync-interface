@@ -649,7 +649,8 @@ module test_top
     // LED[15]; MSB stores the MIG init calibration status;    
     // LED[14] stores the MMCM locked status;
     // LED[13] stores MIG app readiness;
-    // LED[12:9] stores the FSM integer representation of the current state;
-    // LED[8:0] stores the read data; 
+    // LED[12:9] stores the FSM integer representation of the current state of test_top.sv
+    // LED[8:5] stores the FSM integer representation of the current state of user_mem_ctrl.sv
+    // LED[4:0] stores the read data; 
     assign LED =  {MIG_user_init_complete, locked, MIG_user_ready, debug_FSM_reg, debug_ctrl_FSM, user_rd_data[4:0]};
 endmodule
