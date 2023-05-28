@@ -233,9 +233,9 @@ There are three different cases to consider.
 
 Recall that all writing and reading are with respect to the MIG UI clock cycles.
 
-Recall, when writing, it takes two UI clock cycles to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle). The user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data.
+**Write Operation:** Recall, when writing, it takes two UI clock cycles to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle). The user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data during writing.
 
-Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the first (64-bit) data is valid (in the first UI clock cycle), and whether the data is the last (64-bit) chunk on the data bus (in the second UI clock cycle).
+**Reading Operation:** Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the first (64-bit) data is valid (in the first UI clock cycle), and whether the data is the last (64-bit) chunk on the data bus (in the second UI clock cycle).
 
 ## Construction - Address Mapping
 
