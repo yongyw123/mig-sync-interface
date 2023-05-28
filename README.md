@@ -153,7 +153,7 @@ DDR2 is burst oriented. With 4:1 clock ratio and memory data width of 16-bit, DD
 
 ## Construction - Clock Domain Crossing (CDC)
 
-By above, there are two clocks to be concerned with: (1) User System Clock @ 100MHz and (2) MIG UI clock @ 150MHz. The system clock is asynchronous with the MIG UI Clock. CDC Synchronizers are required. Dual-clock FIFO is a potential solution, but at the time of this writing, variants of Flip-flop sychronizers are considered.
+By above, there are two clocks to be concerned with: (1) User System Clock @ 100MHz and (2) MIG UI clock @ 150MHz. The system clock is asynchronous with the MIG UI Clock. CDC Synchronizers are required. At the time of this writing, variants of Flip-flop sychronizers are considered (no handshaking, no FIFO etc) for convenience.
 
 Denote the User System Clock as the slow clock domain, and the MIG UI Clock as the fast clock domain.
 
@@ -192,10 +192,10 @@ There are three different cases to consider.
 **Case 02**
 
 1. Type: Signal is from the fast clock domain but it is guaranteed to be at least three slow clock cycle wide.
-2. Solution: A simple double FF synchronizer is sufficient to guarantee there will be no missed events [??].
+2. Solution: A simple double FF synchronizer is sufficient to guarantee there will be no missed events [6].
 2. Signals that meet this requirement.
     1. "init_calib_complete". MIG only needs to assert this once upon re-initialization, and remains unchanged throughout until a reset occurs or something goes wrong.
-    2. "app_rdy". This signal will only be deasserted if one of the [???] following occurs. Otherwise, it will remain asserted (HIGH).
+    2. "app_rdy". This signal will only be deasserted if one of the [4] following occurs. Otherwise, it will remain asserted (HIGH).
         - PHY/Memory initialization is not yet completed.
         - All the bank machines are occupied (can be viewed as the command buffer being full).
         - A read is requested and the read buffer is full.
@@ -208,7 +208,7 @@ There are three different cases to consider.
     - The FPGA Part Number Speed Grade is -1.
     - From [1], Setup and Hold Times of Configurable Logic Block Flip Flops Before/After Clock, designated as "AX – DX input through MUXs and/or carry logic to CLK on A – D flip-flops" are used as the parameters. These CLB could be [2] configured as D-FF as well.
     - These CLB FF types have the highest setup/hold time compared to other CLB FF. This sets the threshold.
-    - From [1], the **minimum** quoted setup and hold time are 0.81 ns and 0.11 ns (roughly, 0.9 ns and 0.2 ns).
+    - From [1], the **minimum** quoted setup and hold time are 0.81 ns and 0.11 ns (roughly, 0.9 ns and 0.2 ns), respectively.
 4. Potential Problem:
     - Ideal: One slow clock cycle could accommodate 1.5 fast clock. This means that there will be at least one fast clock rising edge (maximum two fast clock rising edges) within a slow clock period. In the event of a setup or a hold time violation for the first rising fast-clock-edge, 1.5x means that there will be a second rising fast-clock-edge clock within the same slow-clock-period to sample the signal. This ensures valid operation.
     - However, there is little safe margin (?); it might be "possible" to have setup time violated in the first rising fast-clock edge AND to have the hold time violated in the second rising fast-clock edge after taking factors such as jitter, rise/fall time, skew etc into account. This means that the signal sampled might be an invalid logic level, resulting in incorrect operation.
@@ -315,7 +315,7 @@ Simulation shows that the write operation is functional: the transaction complet
 
 It takes about 250 ns for the data to be written to the memory after the write request has been submitted and accepted. This is indicated by the non-High Impedance of the "ddr2_dq" line shown in Figure ??. This matches closely with the minimum write cycle time, tWC of 260ns from the Digilent Tutorial [7].
 
-Observe that the completion flag is asserted before the data is written into the memory. This is by the FSM construction (limitation).
+Observe that the completion flag is asserted before the data is written into the memory. This is by the construction (see limitation).
 
 *Figure ??: Simulated Write Operation*
 ![Figure ?](/doc/diagram/simulation/write_op.png "Figure ?? : Simulated Write Operation")
@@ -324,7 +324,7 @@ Observe that the completion flag is asserted before the data is written into the
 
 See Figure ??
 
-Simulation shows that the read operation is functional: when the assertion of the completion flag indicates that data is valid and ready to be read. The data read matches with what is written at the same address.
+Simulation shows that the read operation is functional: the assertion of the completion flag indicates that data is valid and ready to be read. The data read matches with what is written at the same address.
 
 It takes 240ns for the completion status to be asserted after submitting the read request. This matches closely with the minimum read cycle time, tRC of 210 ns from the Digilent Tutorial [7].
 
@@ -368,15 +368,58 @@ By above, Read data actually matches with the previous write data at the same ad
 
 ### Testing Circuit
 
-Test Involved: ?? communicate with the actual DDR2 memory;
+**Modules under test**: 
+1. user_mem_ctrl.sv: the main module under test.
+2. test_top.sv is the top application module that instantiates user_mem_ctrl.sv
 
-add testing circuit result;
+**Test:**
+"test_top.sv" involves writing and displaying the read data as binary representation to the LED. Its FSM is shown in Figure ??. The test sequence is as follows:
 
-mention about the limitation: could not guarantee it works at all times...;
-especially true when sychronizer is involved ..
+1. Start from Address 0. 
+2. Use the address as the write data, and write it.
+3. Read from the same address, and display as binary on the LED.
+4. Pause for 0.5 seconds to inspect the LED display.
+5. Increment the address and repeat.
+6. Note that the address is wrapped around after integer 31.
+
+**Setup:**
+CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Each displays different information for debugging, summarized below:
+
+1. LED[15] represents the MIG_user_init_complete" signal.
+2. LED[14] represent the MMCM locked status.
+3. LED[13] represents the "MIG_user_ready" signal.
+4. LED{12:9] represents the FSM integer representation of the current state of test_top.sv
+5. LED[8:5] represents the FSM integer representation of the current state of user_mem_ctrl.sv.
+6. LED[4:0] represents the read data from the DDR2.
+
+**Test Expectation + Lookout**
+
+1. Once initialized, the LED will be displaying the binary representation of this integer range: [0, 31] in incremental order and wraps around in a free running manner.
+2. CPU HW reset button will reset the HW but it will be up and running as in (1) in a reasonable amount of time.
+3. LED[15:13] should be HIGH after HW reset in a reasonable amount of time.
+
+**Test Method:**
+
+1. Visual inspection
+
+**Test Limitation:**
+
+1. By construction, it is not rigorous.
+2. Not Exhaustive: only 2^{5} = 32 addresses of the DDR2 are covered.
+3. Current test setup could not guarantee that the module under test works correctly almost all the time.
+
+**Note:**
+
+1. CDC (metastable problem) implies that there is always a possibility that the HW will fail, however small.
+
+*Figure ?? : Simplified FSM of test_top.sv*
+![Figure ?](/doc/diagram/fsm_test_top_application.png "Figure ??: Simplified FSM of test_top.sv")
+
+
 
 ### Test Result
 
+1. 
 ?? insert videos for ok and not ok results; ??
 
 ---
