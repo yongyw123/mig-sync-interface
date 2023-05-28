@@ -46,7 +46,7 @@ module toggle_synchronizer_top_tb();
 
     //> mapping
     // first set;
-    /*
+    
     // source  
     assign clk_src = clkout_250M;
     assign rst_src = rst_common;    // common async reset signal;
@@ -54,8 +54,9 @@ module toggle_synchronizer_top_tb();
     // destination
     assign clk_dest = clk_sys;
     assign rst_dest = rst_common;  // common async reset signal;
-    */
     
+    
+    /*
     // second set;
     assign clk_src = clk_sys;
     assign rst_src = rst_common;    // common async reset signal;
@@ -63,6 +64,8 @@ module toggle_synchronizer_top_tb();
     // destination
     assign clk_dest = clkout_250M;
     assign rst_dest = rst_common;  // common async reset signal;
+    */
+    
     /*------------------------------------
     * instantiation 
     ------------------------------------*/
@@ -104,11 +107,5 @@ module toggle_synchronizer_top_tb();
             rst_sys = 1'b0;
             #(100);
         end
-               
-               
-     initial begin
-        #(1000);
-        $stop;
-     end
-
+     
 endmodule
