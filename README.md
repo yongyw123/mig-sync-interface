@@ -18,12 +18,14 @@ This is a simple synchronous wrapper around Xilinx Memory-interface-generated (M
 **Navigation**
 
 ?? to fill up ??
+
 1. Follow Vivado structure:
     1. source file
     2. simulation file
     3. constraint file
 
 ## Table of Content
+
 1. [MIG Configuration](#mig-configuration)
 2. [Block Diagram, Port Description and Some Comments](#block-diagram-port-description-and-some-comments)
 3. [Limitation + Assumption](#summary-limitation--assumption)
@@ -35,7 +37,7 @@ This is a simple synchronous wrapper around Xilinx Memory-interface-generated (M
     5. [FSM](#construction---fsm-of-user_mem_ctrlsv)
 5. [Simulation](#simulation)
 6. [HW Test](#hw-test)
-7. [Documenting Mistakes, Errors and Struggles](#documenting-mistakes-errors-and-struggles)
+7. [Documenting Mistakes Made, Errors Encountered and the Struggles](#documenting-mistakes-errors-and-struggles)
 8. [Clock Constraint](#clock-constraint)
 9. [TODO?](#todo)
 10. [Reference](#reference)
@@ -48,18 +50,18 @@ Table 01 shows the MIG IP configuration. Most of the configurations follow [7] D
 
 *Table 01: MIG Configuration*
 
-| Parameter              | Value      	| Note | 
+| Parameter              | Value       | Note |
 |---                        |---                |---            |
 | **General**   |       |       |
-|MIG Output Options   	|  Create Design 	| Either available option should work.     |
-|Number of Controllers  |   1	            | Unsure if it is supported in DDR2, Also, it is for simplicity. |
+|MIG Output Options    |  Create Design  | Either available option should work.     |
+|Number of Controllers  |   1             | Unsure if it is supported in DDR2, Also, it is for simplicity. |
 | AXI4 Interface        | Disabled          | Not used  |
 | Memory Selection      | DDR2              |        |
 |---                        |---                |---            |
 | **Controller Options**    |                   |           |
 | Clock Period              | 3333ps (300MHz)   |               |
 | PHY to Controller         | 2:1               | See ?? below  |
-| Memory Part               |  MT47H64M16HR-25E |               | 
+| Memory Part               |  MT47H64M16HR-25E |               |
 | Data Width                | 16-bit            | Native. See the DDR2 datasheet        |
 | Data Mask                 | Enabled           | Application specific  |
 | Number of Bank Machines   | 4                 | Default   |
@@ -85,7 +87,7 @@ XADC Instantiation          | Enabled       | For convenience, otherwise one nee
 |**The Rest**      |    |   |
 | Internal Termination Impedance | 50 Ohms          | Board specific          |
 | Pin Selection                 | Import "ddr2_memory_pinout.ucf"        |  This is provided by Digilent. Ensure the pinout matches with the board schematic as a sanity check.         |
-| System Signals Selection      | No connection for all: {sys_rst, init_calib_complete, tg_compare_error} | SW-wired instead of being hard-wired to a board pin. | 
+| System Signals Selection      | No connection for all: {sys_rst, init_calib_complete, tg_compare_error} | SW-wired instead of being hard-wired to a board pin. |
 
 ## Block Diagram, Port Description and Some Comments
 
@@ -106,13 +108,13 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 |  *user_rd_strobe       | I     | Read request. **This must be at least 2 clk_sys cycle wide.**|
 |  *user_addr        | I | Which address of the DDR2 to read from or write into? 23-bit wide. See Section: Address Mapping. |
 | *user_wr_data      | I | Data to be written. 128-bit wide.  |
-| user_rd_data      | O | Data read. 128-bit wide. | 
+| user_rd_data      | O | Data read. 128-bit wide. |
 | MIG_user_init_calib_complete | O | Synchronized "init_calib_complete" signal from MIG UI interface. |
 | MIG_user_ready    | O | Synchronized "app_rdy" signal from MIG UI interface. |
 | *MIG_user_transaction_complete | O | Indication when read/write request is "completed". See Elaborated Section below. |
 | clk_mem   | I     | This is directly mapped to sys_clk_i of MIG UI Interface. |
 | *rst_mem_n | I     | This is directly mapped to sys_rst of MIG UI Interface. This is active LOW.   |
- 
+
 ### List 01: Port (Signal) Definition and Conditions
 
 1. "user_wr_strobe": This signal must be at least **two (2) clk_sys cycle wide** for a **single write operation**.
@@ -120,7 +122,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 3. "user_addr": This line must be held stable prior to submitting read/write request, and shall remain stable throughout until "MIG_user_transaction_complete" is asserted.
 4. *user_wr_data": This line must be held stable prior to submitting read/write request, and shall remain stable throughout until "MIG_user_transaction_complete" is asserted.
 5. "MIG_user_transaction_complete": Upon submitting read/write request, the user needs to wait for the assertion of this signal before issuing new request. This signal is only asserted for one clk_sys and cleared thereafter. It means differently for read and write request.
-    1. For read operation, its assertion implies that the read request has been accepted and acknowledged by MIG **AND** the data on "user_rd_data" line is valid to read. 
+    1. For read operation, its assertion implies that the read request has been accepted and acknowledged by MIG **AND** the data on "user_rd_data" line is valid to read.
     2. For write operation, its assertion implies that the write request has been accepted and acknowledged by MIG. It **DOES NOT** imply that the "user_wr_data" has been written to the actual DDR2 successfully.
 6. "rst_mem_n": This signal must be synchronized with clk_mem, and it must be asserted for at least 1024 clk_mem cycles. See Section: ??
 
@@ -142,6 +144,7 @@ There are three clocks involved, summarized below in Table 02. Primarily, only t
 2. The address and write data line must be held stable.
 3. Write and Read Request: {"user_wr_strobe", "user_rd_strobe"} must be at least two user system clock (100MHz) cycles wide. This is explained in Section: ??
 4. Unlike the read operation, there is no viable MIG UI interface signal to use to reliably assert exactly when the data is written to the DDR2 external memory (?). This is reflected in the definition of "MIG_user_transaction_complete".
+5. The synchronizers used for CDC are FF-based, no handshaking or whatsoever. Possible to have missed events (?)
 
 ---
 
@@ -161,15 +164,15 @@ Denote the User System Clock as the slow clock domain, and the MIG UI Clock as t
 
 ### Signals to Synchronize when Crossing
 
-1. From slow to fast: 
-    1. "user_write_strobe" 
+1. From slow to fast:
+    1. "user_write_strobe"
     2. "user_read_strobe"
 2. From fast to slow:
     1. "init_calib_complete"
     2. "app_rdy"
     3. user_transaction_complete"
 
-### Classification of CDC Signal Types:
+### Classification of CDC Signal Types
 
 A simple double Flip-flop as the synchronizer is sufficient to "resolve/minimize" metastability issue, but it does not guarantee that a metastable signal, if occured will resolve into a valid logical level, thus a valid operation is not guaranteed.
 
@@ -228,7 +231,6 @@ There are three different cases to consider.
 | app_rdy                   | MIG UI Clock         | User System Clock  | Double FF                             | At least three (3) user system clock wide |
 | user_transaction_complete | MIG UI Clock         | User System Clock  | Toggle Synchronizer                   | One UI clock cycle wide   |
 
-
 ## Construction - Write + Read Operation
 
 Recall that all writing and reading are with respect to the MIG UI clock cycles.
@@ -236,7 +238,6 @@ Recall that all writing and reading are with respect to the MIG UI clock cycles.
 Recall, when writing, it takes two UI clock cycles to complete the entire 128-bit data; (thus one 64-bit batch per clock cycle). The user needs to explicitly assert a data end flag to signal to the DDR2 for the second batch data.
 
 Similar to the write operation, it takes two cycles to read all 128-bit data. MIG will signal when the first (64-bit) data is valid (in the first UI clock cycle), and whether the data is the last (64-bit) chunk on the data bus (in the second UI clock cycle).
-
 
 ## Construction - Address Mapping
 
@@ -331,7 +332,6 @@ It takes 240ns for the completion status to be asserted after submitting the rea
 *Figure ??: Simulated Read Operation*
 ![Figure ?](/doc/diagram/simulation/read_op.png "Figure ?? : Simulated Read Operation")
 
-
 ### Set 03: Immediate Read from the Same Address as the Write After Write Transaction Completion Flag is Asserted
 
 **Recall:**
@@ -343,7 +343,7 @@ It takes 240ns for the completion status to be asserted after submitting the rea
 What happens a read request is immediately issued at the same write address after "*MIG_user_transaction_complete*" has been asserted for the previous write request? Would the data read actually match with what is written in the write request just before?
 
 **Simulated:**
-See Figure ??: . This figure shows the simulated process: 
+See Figure ??: . This figure shows the simulated process:
 
 1. Write Request is submitted at Address 3.
 2. "*MIG_user_transaction_complete*" is asserted for the write request.
@@ -358,7 +358,7 @@ By above, Read data actually matches with the previous write data at the same ad
 **Possible Explanation:**
 
 1. The observation above matches with the datasheet and the support article linked below.
-2. That is, [?] MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently). 
+2. That is, [?] MIG controller could service concurrent transactions, but under the hood (PHY layer), these transactions are pipelined, and successive transaction will overlap but they are initiated and completed serially (not concurrently).
 3. Support article: <https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US>
 
 *Figure ?? : Simulated result for Set 03 of Simulation Results.*
@@ -368,14 +368,15 @@ By above, Read data actually matches with the previous write data at the same ad
 
 ### Testing Circuit
 
-**Modules under test**: 
+**Modules under test:**
+
 1. user_mem_ctrl.sv: the main module under test.
 2. test_top.sv is the top application module that instantiates user_mem_ctrl.sv
 
 **Test:**
 "test_top.sv" involves writing and displaying the read data as binary representation to the LED. Its FSM is shown in Figure ??. The test sequence is as follows:
 
-1. Start from Address 0. 
+1. Start from Address 0.
 2. Use the address as the write data, and write it.
 3. Read from the same address, and display as binary on the LED.
 4. Pause for 0.5 seconds to inspect the LED display.
@@ -385,12 +386,14 @@ By above, Read data actually matches with the previous write data at the same ad
 **Setup:**
 CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Each displays different information for debugging, summarized below:
 
-1. LED[15] represents the MIG_user_init_complete" signal.
-2. LED[14] represent the MMCM locked status.
-3. LED[13] represents the "MIG_user_ready" signal.
-4. LED{12:9] represents the FSM integer representation of the current state of test_top.sv
-5. LED[8:5] represents the FSM integer representation of the current state of user_mem_ctrl.sv.
-6. LED[4:0] represents the read data from the DDR2.
+|   LED     | Purpose   |
+|---        |---        |
+| LED[15]   | represents the MIG_user_init_complete" signal.    |
+| LED[14]   | represent the MMCM locked status.                 |
+| LED[13]   | represents the "MIG_user_ready" signal.           |
+| LED[12:9] | represents the FSM integer representation of the current state of test_top.sv |
+| LED[8:5]  | represents the FSM integer representation of the current state of user_mem_ctrl.sv.    |
+| LED[4:0]  | represents the read data from the DDR2. |
 
 **Test Expectation + Lookout**
 
@@ -405,22 +408,32 @@ CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Eac
 **Test Limitation:**
 
 1. By construction, it is not rigorous.
-2. Not Exhaustive: only 2^{5} = 32 addresses of the DDR2 are covered.
-3. Current test setup could not guarantee that the module under test works correctly almost all the time.
+2. Not exhaustive: only 2^{5} = 32 addresses of the DDR2 are covered.
+3. Not exhaustive: the test only involves sequential write->read. Might want to test burst write -> burst read (?)
+4. Current test setup could not guarantee that the module under test works correctly almost all the time. That said, it is important to bear in mind that for any CDC (metastable problem), there will always be a possibility that the HW will fail, however small.
 
-**Note:**
+**FSM of test_top.sv**
 
-1. CDC (metastable problem) implies that there is always a possibility that the HW will fail, however small.
+|  State    | Definition    |
+|---        |---            |
+|   ST_CHECK_INIT   | Wait for the memory initialization to complete before starting everything else. |
+| ST_WRITE_SETUP    | Prepare the write data and the addr.   |
+| ST_WRITE          | Submit the write request. |
+| ST_WRITE_EXTEND   | Ensure the write request is two system-clock-cycle wide as per the limitation. |
+| ST_READ           | Submit the read request. |
+| ST_READ_EXTEND    | Ensure the read request is two system-clock-cycle wide as per the limitation. | 
+| ST_READ_WAIT      | Wait for the read data to be valid. |
+| ST_LED_WAIT       | Display the read data for N seconds.  |
+| ST_GEN            | Generate the next test data. |
 
 *Figure ?? : Simplified FSM of test_top.sv*
 ![Figure ?](/doc/diagram/fsm_test_top_application.png "Figure ??: Simplified FSM of test_top.sv")
 
-
-
 ### Test Result
 
-1. 
-?? insert videos for ok and not ok results; ??
+1. Test Length: Ran for one-hour, the LED continued to be free-running.
+2. Test Status: OK?
+3. Video Recording: Link: <https://drive.google.com/drive/folders/1jDpcOk9L0NAmC6i9KCu0XNu8hWP9ik13?usp=share_link>
 
 ---
 
@@ -437,18 +450,20 @@ This section is to document the mistakes committed, observations made and the st
 2. **HW DDR2 Not Coming Out of a CPU (Soft) Reset**:
     1. Issue: When testing on the actual HW, DDR2 does not "come out of reset" after a CPU Button Reset, as observed by the LEDs (MIG readiness is not asserted).
     2. Note: Soft reset is via the Board button to generate a reset signal after the FPGA has been programmed. It is not a Power-on-Reset or a HW reset (bitstream programming).
-    3. Frequency: Always happen. 
-    4. Solution: It is unsure what is the exact cause; it takes the combination of the following actions to resolve the issue (?).
+    3. Video Recording Link: <https://drive.google.com/drive/folders/1gb136PxTikKgRGXDFi2KNul3F2RPILpb?usp=share_link>
+    4. Frequency: Always happen.
+    5. Solution: It is unsure what is the exact cause; it takes the combination of the following actions to resolve the issue (?).
         1. Do not reset the MMCM. This will reset the 200MHz Clock driving the MIG. Simulation suggests that: (1) it will re-initialize the MIG (2) and MIG will remain in this state unless a MIG reset is further applied. This is not observed in practice. It is observed that MIG never asserts its app_ready/initialization complete flag (at least in a reasonable amount of time) after resetting the MMCM followed by a MIG reset. So, do not enable MMCM reset option for obvious reason.
         2. Synchronous reset the MIG with respect to its clock: 200MHz with the reset signal stretched (lengthened) over at least 1024 clock cycles. This number 1024 works at first try, it is not rigourous. It is unsure why this synchronous condition is required since MIG will internally synchronize the reset (?)
 
-3. **Invalid Operation due to the Synchronization**: 
+3. **Invalid Operation due to the Synchronization**:
     1. Issue: When testing on the real HW, it is observed that the application of "test_top.sv" eventually stuck after running for awhile as observed in video here: ??, where it shows the first five LEDs "stuck"; it is expected that the LEDs will display integer from 0 to 32 as binary representation in a free-running manner.
-    2. Frequency: Almost everytime (eventually), and the pattern where the LEDs stuck varies each time the issue occurs.
-    3. Debugging: Use the LEDs to display the current FSM state.
-    4. Observed: "user_mem_ctrl" module is in idle state waiting for read/write request; whereas the top (application) module: "test_top" is in the write-waiting state waiting for the transaction completion status. After multiple hit-and-probes, it is narrowed down to: "user_mem_ctrl" misses the write strobe from "test_top" for some reason. There is no logically explanation for this since the FSM's of both module are constructed to be in block-and-wait manner. This leaves "HW" explanation.
-    5. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: ?? This cause offers the likely explanation as it matches with the observation.
-    6. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
+    2. Video Recording Link: <https://drive.google.com/drive/folders/1wwbxzsgrZaXu72Hj7EEqSP6sNMBk8B6M?usp=share_link>
+    3. Frequency: Almost everytime (eventually), and the pattern where the LEDs stuck varies each time the issue occurs.
+    4. Debugging: Use the LEDs to display the current FSM state.
+    5. Observed: "user_mem_ctrl" module is in idle state waiting for read/write request; whereas the top (application) module: "test_top" is in the write-waiting state waiting for the transaction completion status. After multiple hit-and-probes, it is narrowed down to: "user_mem_ctrl" misses the write strobe from "test_top" for some reason. There is no logically explanation for this since the FSM's of both module are constructed to be in block-and-wait manner. This leaves "HW" explanation.
+    6. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: ?? This cause offers the likely explanation as it matches with the observation.
+    7. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
 
 ## Clock Constraint
 
