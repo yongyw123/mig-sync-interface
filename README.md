@@ -491,7 +491,7 @@ Assume the synchronization is from fast clock domain to slow clock domain in thi
 
 ### Case Study when Conditions are violated
 
-1. To violate condition 01, just create a static HIGH signal in the fast clock domain. The resulting synchronized signal in the slow clock domain will be a train pulse. This is shown in Figure 10. This is due to this component pair: (MUX, FF1) of the toggle synchronizer. If the signal to synchronize is always HIGH, the output of the MUX will be constantly toggled at every fast clock cycle, resulting a pulse-like signal in the slow clock domain.
+1. To violate condition 01, just create a static HIGH signal in the fast clock domain. The resulting synchronized signal in the slow clock domain will be a train pulse. This is shown in Figure 10. This is not desirable. This is due to this component pair: (MUX, FF1) of the toggle synchronizer. If the signal to synchronize is always HIGH, the output of the MUX will be constantly toggled at every fast clock cycle, resulting a pulse-like signal in the slow clock domain.
 
 *Figure 10: Toggle Synchronizer Corner Case 01*
 ![Figure 10](/doc/diagram/toggle-synchronizer/corner-cases/case-01-not-ok-with-static-signal.png "Figure 10: Toggle Synchronizer Corner Case 01")
