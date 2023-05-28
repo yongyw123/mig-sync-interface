@@ -185,10 +185,11 @@ There are three different cases to consider.
 1. Type: Signal is a pulse, one fast-clock-cycle (6.67 ns) wide.
 2. Issue: Fast clock is 1.5 times faster than the slow clock. A simple double FF synchronizer is not sufficient. There will be missed events. Assuming there is no signal stretching, with MIG-clock period at 6.67 ns, a signal in one MIG-clock cycle will only be 6.67 ns wide, for which changes to the signal may happen between the rising edges of the system clock running at 10.0 ns period. The change(s) is not sampled by either of the rising edges.
 3. Impacted Signal: "user_transaction_complete"
-4. Solution: Toggle Synchronizer, as shown in Figure 02. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
+4. Solution: Toggle Synchronizer, shown in Figure 02. It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
+5. Caution: However, one needs to exercise caution when using the toggle synchronizer. There exist "traps". See Section: [Caution in Using Toggle Synchronizer](#caution-in-using-toggle-synchronizer)
 
 *Figure 02: Toggle Synchronizer*
-![Figure 02](/doc/diagram/toggle_synchronizer.png "Figure 02: Toggle Synchronizer")
+![Figure 02](/doc/diagram/toggle-synchronizer/toggle_synchronizer.png "Figure 02: Toggle Synchronizer")
 
 **Case 02**
 
@@ -317,7 +318,7 @@ It takes about 250 ns for the data to be written to the memory after the write r
 Observe that the completion flag is asserted before the data is written into the memory. This is by the construction (see limitation).
 
 *Figure 05: Simulated Write Operation*
-![Figure 05](/doc/diagram/simulation/write_op.png "Figure 05: Simulated Write Operation")
+![Figure 05](/doc/diagram/mig-operation-simulation/write_op.png "Figure 05: Simulated Write Operation")
 
 ### Set 02: Read Transaction
 
@@ -327,7 +328,7 @@ Simulation shows that the read operation is functional: the assertion of the com
 It takes 240ns for the completion status to be asserted after submitting the read request. This matches closely with the minimum read cycle time, tRC of 210 ns from the Digilent Tutorial [7].
 
 *Figure 06: Simulated Read Operation*
-![Figure 06](/doc/diagram/simulation/read_op.png "Figure 06: Simulated Read Operation")
+![Figure 06](/doc/diagram/mig-operation-simulation/read_op.png "Figure 06: Simulated Read Operation")
 
 ### Set 03: Immediate Read from the Same Address as the Write After Write Transaction Completion Flag is Asserted
 
@@ -359,7 +360,7 @@ By above, Read data actually matches with the previous write data at the same ad
 3. Support article: <https://support.xilinx.com/s/question/0D52E00006hpWuzSAE/simultaneous-readwrite-migddr3?language=en_US>
 
 *Figure 07: Simulated result for Set 03 of Simulation Results.*
-![Figure 07](/doc/diagram/simulation/annotated_figure_write_and_read_almost_concurrent.png "Figure 07: Simulated result for Set 03 of Simulation Results.")
+![Figure 07](/doc/diagram/mig-operation-simulation/annotated_figure_write_and_read_almost_concurrent.png "Figure 07: Simulated result for Set 03 of Simulation Results.")
 
 ## HW Test
 
@@ -418,7 +419,7 @@ CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Eac
 | ST_WRITE          | Submit the write request. |
 | ST_WRITE_EXTEND   | Ensure the write request is two system-clock-cycle wide as per the limitation. |
 | ST_READ           | Submit the read request. |
-| ST_READ_EXTEND    | Ensure the read request is two system-clock-cycle wide as per the limitation. | 
+| ST_READ_EXTEND    | Ensure the read request is two system-clock-cycle wide as per the limitation. |
 | ST_READ_WAIT      | Wait for the read data to be valid. |
 | ST_LED_WAIT       | Display the read data for N seconds.  |
 | ST_GEN            | Generate the next test data. |
@@ -462,9 +463,55 @@ This section is to document the mistakes committed, observations made and the st
     6. Possible Cause: The write strobe is synchronized initially using a simple double FF synchronizer. It is suspected metastability occurs but it is resolved into an invalid logic (LOW instead of HIGH), thus resulting in invalid operation. This is discussed in Section: [CDC - Case 03](#construction---clock-domain-crossing-cdc). This cause offers the likely explanation as it matches with the observation.
     7. Solution: Extending the write and read request (strobe) to two system clock cycles, where the system clock is 100MHz seems to have resolved (minimized) the occurrence of this issue (?). See HW Testing.  In hindsight, FF-based synchronizer with hand-shaking, or dual-clock FIFO is a safer candidate to handle CDC.
 
+## Caution in Using Toggle Synchronizer
+
+### (Repeated) Background
+
+Toggle synchronizer is useful to synchronize a short pulse from a fast clock domain to a slow clock domain. See Figure 09.  It consists of a multiplexer-and-FF, a double FF-synchronizer and a rising/falling edge detector. The functionality is as follows: (1) A pulse in the FF1 will toggle the signal in FF2 with the help of the multiplex in the fast clock domain; (2) which will be passed (delayed) through a double FF-synchronizer (FF2 + FF2); (3) until it reaches the final FF4 where the rising/fall detector (XOR circuit + FF4) is used to recreate the pulse with respect to the slower clock.
+
+*Figure 09: Toggle Synchronizer*
+![Figure 09](/doc/diagram/toggle-synchronizer/toggle_synchronizer.png "Figure 09: Toggle Synchronizer")
+
+### Caution
+
+However, there are some strict conditions when using it. If any of these conditions are violated, the synchronized pulse will not be "recreated" correctly in the slow clock domain, hence it may result in incorrect/invalid operation.
+
+Assume the synchronization is from fast clock domain to slow clock domain in this discussion.
+
+**Conditions:**
+
+1. Pulse is only one fast-clock-cycle wide.
+2. There should be only one fast-clock-pulse in at least three slow-clock cycles.
+
+**Designations:** Figures shown in this section have common designated signals of interest, defined as follows:
+1. "in_async" is the signal to be synchronized.
+2. "clk_src" is the source clock (fast clock) of "in_async"; it is 250MHz.
+3. "out_sync" is the output of the toggle synchronizer.
+4. "clk_dest" is the destination clock (slow clock); it is 100MHz.
+
+### Case Study when Conditions are violated
+
+1. To violate condition 01, just create a static HIGH signal in the fast clock domain. The resulting synchronized signal in the slow clock domain will be a train pulse. This is shown in Figure 10. This is due to this component pair: (MUX, FF1) of the toggle synchronizer. If the signal to synchronize is always HIGH, the output of the MUX will be constantly toggled at every fast clock cycle, resulting a pulse-like signal in the slow clock domain.
+
+*Figure 10: Toggle Synchronizer Corner Case 01*
+![Figure 10](/doc/diagram/toggle-synchronizer/corner-cases/case-01-not-ok-with-static-signal.png "Figure 10: Toggle Synchronizer Corner Case 01")
+
+2. To violate condition 02, create a pulse every fast clock cycle, shown in Figure 11. Figure 11 shows that there are ten (10) one-fast-clock-cycle pulses. However, there are three (3) "pulses" in the slow clock domain. This is incorrect since it is "expected" to have ten pulses in the slow clock domain as well. This is because the toggle synchronizer consistes three registers (FFs) clocked by the slow clock, thus, it takes three slow clock cycle to flush out the "old information".
+
+*Figure 11: Toggle Synchronizer Corner Case 02*
+![Figure 11](/doc/diagram/toggle-synchronizer/corner-cases/case-02-not-ok-with-pulse-every-new-fast-clock-cycle.png "Figure 11: Toggle Synchronizer Corner Case 02")
+
+### Case Study when Conditions are Met.
+
+If the conditions are met, the synchronized pulse will be successfully recreated in the slow clock domain. For example, if there are ten (10) pulses in the fast clock domain, then we should expect for ten pulse synchronized with the slow clock domain. This is shown in Figure 12. 
+
+*Figure 12: Toggle Synchronizer Condition Met*
+![Figure 12](/doc/diagram/toggle-synchronizer/corner-cases/case-03-ok-with-three-slow-clock-cycles-gap.png "Figure 12: Toggle Synchronizer Condition Met")
+
+
 ## Clock Constraint
 
-There exists CDC between MIG UI clock @ 150MHz and "user system clock @ 100MHz". Clock constraint is required. Currently, the timing path between these two clocks are set to false. 
+There exists CDC between MIG UI clock @ 150MHz and "user system clock @ 100MHz". Clock constraint is required. Currently, the timing path between these two clocks are set to false.
 
 To identify the generated clock source, TCL commands: such as "report_CDC", "report_clocks" are useful; all information to locate the clock sources could be found in the Vivado Implementation Reports.
 
