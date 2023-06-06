@@ -431,7 +431,7 @@ CPU HW reset button is used to reset the HW. There are 16 LEDs on the board. Eac
 
 1. Test Length: Ran for one-hour, the LED continued to be free-running.
 2. Test Status: OK?
-3. Video Recording: Link: <https://drive.google.com/drive/folders/1jDpcOk9L0NAmC6i9KCu0XNu8hWP9ik13?usp=share_link>
+3. Video Recording: Link: <https://drive.google.com/file/d/1lTSsbss1zqeZVouKisOLirStBPGCGt91/view?usp=sharing>
 
 ---
 
