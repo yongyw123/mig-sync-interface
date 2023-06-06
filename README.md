@@ -448,7 +448,7 @@ This section is to document the mistakes committed, observations made and the st
 2. **HW DDR2 Not Coming Out of a CPU (Soft) Reset**:
     1. Issue: When testing on the actual HW, DDR2 does not "come out of reset" after a CPU Button Reset, as observed by the LEDs (MIG readiness is not asserted).
     2. Note: Soft reset is via the Board button to generate a reset signal after the FPGA has been programmed. It is not a Power-on-Reset or a HW reset (bitstream programming).
-    3. Video Recording Link: <https://drive.google.com/drive/folders/1gb136PxTikKgRGXDFi2KNul3F2RPILpb?usp=share_link>
+    3. Video Recording Link: <https://drive.google.com/file/d/1THX7dBo9ECRLmix1U8IlJKkalnXjypVa/view?usp=sharing>
     4. Frequency: Always happen.
     5. Solution: It is unsure what is the exact cause; it takes the combination of the following actions to resolve the issue (?).
         1. Do not reset the MMCM. This will reset the 200MHz Clock driving the MIG. Simulation suggests that: (1) it will re-initialize the MIG (2) and MIG will remain in this state unless a MIG reset is further applied. This is not observed in practice. It is observed that MIG never asserts its app_ready/initialization complete flag (at least in a reasonable amount of time) after resetting the MMCM followed by a MIG reset. So, do not enable MMCM reset option for obvious reason.
@@ -456,7 +456,7 @@ This section is to document the mistakes committed, observations made and the st
 
 3. **Invalid Operation due to the Synchronization**:
     1. Issue: When testing on the real HW, it is observed that the application of "test_top.sv" eventually stuck after running for awhile, where the linked video shows the first five LEDs "stuck"; it is expected that the LEDs will display integer from 0 to 31 as binary representation in a free-running manner.
-    2. Video Recording Link: <https://drive.google.com/drive/folders/1wwbxzsgrZaXu72Hj7EEqSP6sNMBk8B6M?usp=share_link>
+    2. Video Recording Link: <https://drive.google.com/file/d/1rxYalKLs_qhhEbxa9sbDWvCUz4_XO6Xw/view?usp=sharing>
     3. Frequency: Almost everytime (eventually), and the pattern where the LEDs stuck varies each time the issue occurs.
     4. Debugging: Use the LEDs to display the current FSM state.
     5. Observed: "user_mem_ctrl" module is in idle state waiting for read/write request; whereas the top (application) module: "test_top" is in the write-waiting state waiting for the transaction completion status. After multiple hit-and-probes, it is narrowed down to: "user_mem_ctrl" misses the write strobe from "test_top" for some reason. There is no logically explanation for this since the FSM's of both module are constructed to be in block-and-wait manner. This leaves "HW" explanation.
